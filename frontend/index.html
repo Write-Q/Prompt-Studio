@@ -3,64 +3,114 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PromptStudio 智能提示词管理与生成平台</title>
+  <title>PromptStudio | 像素提示词工作室</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
+  <div class="pixel-grid" aria-hidden="true"></div>
+  <button id="mobileMenuButton" class="mobile-menu-button" type="button" aria-label="打开导航">菜单</button>
+  <div id="scrim" class="scrim" aria-hidden="true"></div>
+
   <div class="app-shell">
-    <aside class="sidebar">
+    <aside class="sidebar" aria-label="主导航">
       <div class="brand">
-        <div class="brand-mark">PS</div>
+        <svg class="pixel-cat" viewBox="0 0 64 64" role="img" aria-label="PromptStudio 像素小猫标识" shape-rendering="crispEdges">
+          <rect x="12" y="24" width="40" height="28" fill="#f4c66a"></rect>
+          <rect x="16" y="16" width="8" height="8" fill="#f4c66a"></rect>
+          <rect x="40" y="16" width="8" height="8" fill="#f4c66a"></rect>
+          <rect x="24" y="34" width="6" height="6" fill="#2c2118"></rect>
+          <rect x="40" y="34" width="6" height="6" fill="#2c2118"></rect>
+          <rect x="32" y="42" width="6" height="4" fill="#2c2118"></rect>
+          <rect x="20" y="46" width="8" height="2" fill="#2c2118"></rect>
+          <rect x="42" y="46" width="8" height="2" fill="#2c2118"></rect>
+          <rect x="8" y="28" width="4" height="20" fill="#2c2118"></rect>
+          <rect x="52" y="28" width="4" height="20" fill="#2c2118"></rect>
+          <rect x="18" y="22" width="4" height="4" fill="#ffd98d"></rect>
+          <rect x="42" y="22" width="4" height="4" fill="#ffd98d"></rect>
+        </svg>
         <div>
           <strong>PromptStudio</strong>
-          <span>AI Prompt Lab</span>
+          <span>Pixel Prompt Lab</span>
         </div>
       </div>
 
-      <nav class="side-nav" aria-label="主导航">
-        <button class="nav-item active" type="button" data-view="dashboard">仪表盘</button>
-        <button class="nav-item" type="button" data-view="snippets">知识片段</button>
-        <button class="nav-item" type="button" data-view="templates">提示词模板</button>
-        <button class="nav-item" type="button" data-view="history">生成记录</button>
-        <button class="nav-item" type="button" data-view="ai">AI 生成</button>
+      <nav class="side-nav">
+        <button class="nav-item active" type="button" data-view="dashboard">
+          <span>01</span>仪表盘
+        </button>
+        <button class="nav-item" type="button" data-view="templates">
+          <span>02</span>提示词模板
+        </button>
+        <button class="nav-item" type="button" data-view="snippets">
+          <span>03</span>知识片段
+        </button>
+        <button class="nav-item" type="button" data-view="history">
+          <span>04</span>生成记录
+        </button>
+        <button class="nav-item" type="button" data-view="ai">
+          <span>05</span>AI 生成
+        </button>
       </nav>
 
-      <div class="sidebar-card">
-        <span>当前模式</span>
+      <div class="sidebar-note">
+        <span class="status-chip" id="apiStatus">连接中</span>
         <strong>Rule + DeepSeek</strong>
-        <p>先规则拼接 Prompt，再选择模型进行流式生成。</p>
+        <p>先用模板、变量和知识片段拼接最终 Prompt，再交给模型流式生成回答。</p>
       </div>
     </aside>
 
     <div class="main-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow">智能提示词管理与生成平台</p>
+        <div class="title-block">
+          <p class="eyebrow">像素提示词工作室</p>
           <h1 id="pageTitle">仪表盘</h1>
+          <p id="pageSubtitle">把模板、知识和灵感收进一个可复用的 AI 工作台。</p>
         </div>
 
         <div class="topbar-tools">
           <label class="search-box">
             <span>搜索</span>
-            <input id="globalSearch" type="search" placeholder="搜索模板、知识片段或历史记录">
+            <input id="globalSearch" type="search" placeholder="模板、知识、历史记录">
           </label>
-          <button id="refreshButton" class="ghost-button" type="button">刷新数据</button>
-          <div class="avatar" title="本地用户">喵</div>
+          <button id="refreshButton" class="secondary-button" type="button">刷新数据</button>
         </div>
       </header>
 
       <main class="content">
         <section class="view-section active" id="dashboardView">
-          <div class="hero-panel">
-            <div>
-              <span class="pill">PromptStudio</span>
-              <h2>把碎片知识变成可复用的 AI 生产力</h2>
-              <p>适合学生写作、办公总结、内容创作和课程设计展示。通过模板、知识片段和生成历史，形成一个可持续迭代的 Prompt 工作台。</p>
+          <div class="hero-band">
+            <div class="hero-copy">
+              <span class="pixel-pill">PromptStudio</span>
+              <h2>把零散灵感收进一间会发光的提示词工坊。</h2>
+              <p>模板负责结构，知识片段负责上下文，历史记录负责复盘。你只需要把任务说清楚，剩下的交给工作流。</p>
+              <div class="hero-actions">
+                <button type="button" data-focus-builder>开始生成 Prompt</button>
+                <button class="secondary-button" type="button" data-jump-view="templates">整理模板</button>
+              </div>
             </div>
-            <div class="hero-orb"></div>
+            <div class="hero-console" aria-hidden="true">
+              <div class="console-top">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="console-lines">
+                <span class="line wide"></span>
+                <span class="line mid"></span>
+                <span class="line short"></span>
+              </div>
+              <svg class="console-cat" viewBox="0 0 64 64" shape-rendering="crispEdges">
+                <rect x="10" y="26" width="44" height="26" fill="#f4c66a"></rect>
+                <rect x="14" y="18" width="10" height="10" fill="#f4c66a"></rect>
+                <rect x="40" y="18" width="10" height="10" fill="#f4c66a"></rect>
+                <rect x="23" y="35" width="6" height="6" fill="#2c2118"></rect>
+                <rect x="39" y="35" width="6" height="6" fill="#2c2118"></rect>
+                <rect x="32" y="43" width="6" height="4" fill="#2c2118"></rect>
+                <rect x="8" y="34" width="4" height="18" fill="#2c2118"></rect>
+                <rect x="54" y="34" width="4" height="18" fill="#2c2118"></rect>
+              </svg>
+            </div>
           </div>
 
-          <section class="stats-grid">
+          <section class="stats-grid" aria-label="数据概览">
             <article class="stat-card">
               <span>知识片段</span>
               <strong id="snippetCount">0</strong>
@@ -69,12 +119,12 @@
             <article class="stat-card">
               <span>提示词模板</span>
               <strong id="templateCount">0</strong>
-              <small>结构化任务模板</small>
+              <small>结构化任务框架</small>
             </article>
             <article class="stat-card">
-              <span>生成次数</span>
+              <span>生成记录</span>
               <strong id="historyCount">0</strong>
-              <small>已保存生成记录</small>
+              <small>已保存的 Prompt</small>
             </article>
             <article class="stat-card">
               <span>最近更新</span>
@@ -83,12 +133,12 @@
             </article>
           </section>
 
-          <section class="dashboard-grid">
-            <article class="panel quick-panel">
+          <section class="dashboard-grid" id="builderArea">
+            <article class="panel builder-panel">
               <div class="panel-head">
                 <div>
                   <h2>快速生成</h2>
-                  <p>选择模板、填写关键词和变量，一键生成最终 Prompt。</p>
+                  <p>选择模板、填写变量，再挂载需要的知识片段。</p>
                 </div>
                 <button id="generatePromptButton" type="button">生成 Prompt</button>
               </div>
@@ -99,12 +149,12 @@
                   <select id="quickTemplateSelect"></select>
                 </label>
                 <label>
-                  核心关键词 / 输入内容
+                  核心输入
                   <input id="quickKeyword" type="text" placeholder="例如：三天上海旅行计划、周报总结、论文摘要">
                 </label>
               </div>
 
-              <div class="variable-card">
+              <div class="builder-section">
                 <div class="section-title">
                   <span>模板变量</span>
                   <small id="variableCount">0 个变量</small>
@@ -112,9 +162,9 @@
                 <div id="variableFields" class="variable-grid"></div>
               </div>
 
-              <div class="snippet-picker">
+              <div class="builder-section">
                 <div class="section-title">
-                  <span>选择知识片段</span>
+                  <span>知识片段</span>
                   <small id="selectedSnippetCount">已选 0 个</small>
                 </div>
                 <div id="snippetChoices" class="choice-list"></div>
@@ -127,7 +177,10 @@
                   <h2>最终 Prompt</h2>
                   <p id="promptHint">生成结果会显示在这里。</p>
                 </div>
-                <button id="copyPromptButton" class="ghost-button" type="button">复制</button>
+                <div class="button-row">
+                  <button id="copyPromptButton" class="secondary-button" type="button">复制</button>
+                  <button id="pushToAiButton" class="secondary-button" type="button">送去 AI</button>
+                </div>
               </div>
               <textarea id="finalPrompt" readonly placeholder="等待生成 Prompt..."></textarea>
             </article>
@@ -136,69 +189,50 @@
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h2>最近生成记录</h2>
-                <p>点击记录可以把历史 Prompt 重新载入到生成区。</p>
+                <h2>最近生成</h2>
+                <p>点击记录可以把历史 Prompt 重新载入工作台。</p>
               </div>
-              <button class="ghost-button" type="button" data-jump-view="history">查看全部</button>
+              <button class="secondary-button" type="button" data-jump-view="history">查看全部</button>
             </div>
             <div id="recentHistoryList" class="record-list"></div>
           </section>
         </section>
 
-        <section class="view-section" id="snippetsView">
-          <div class="section-layout">
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2>新增知识片段</h2>
-                  <p>保存常用背景资料、写作规范、业务知识。</p>
-                </div>
-              </div>
-              <form id="snippetForm" class="form-stack">
-                <label>标题<input id="snippetTitle" type="text" placeholder="例如：周报写作规范" required></label>
-                <label>标签<input id="snippetTags" type="text" placeholder="周报, 总结, 工作"></label>
-                <label>来源<input id="snippetSource" type="text" placeholder="可为空，例如：团队文档"></label>
-                <label>内容<textarea id="snippetContent" rows="8" placeholder="请输入知识片段内容" required></textarea></label>
-                <button type="submit">保存片段</button>
-              </form>
-            </article>
-
-            <article class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2>知识片段库</h2>
-                  <p>用于辅助 Prompt 拼接。</p>
-                </div>
-              </div>
-              <div id="snippetList" class="resource-list"></div>
-            </article>
-          </div>
-        </section>
-
         <section class="view-section" id="templatesView">
+          <div class="section-intro">
+            <span class="pixel-pill">Templates</span>
+            <h2>提示词模板库</h2>
+            <p>把高频任务拆成可填空的结构。变量写作 <code>{输入内容}</code>、<code>{语气}</code> 这样的格式。</p>
+          </div>
+
           <div class="section-layout">
             <article class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>新增提示词模板</h2>
-                  <p>支持中文变量占位符，例如 {语气}、{输入内容}。</p>
+                  <h2 id="templateFormTitle">新增模板</h2>
+                  <p>写清任务边界、输出格式和变量占位符。</p>
                 </div>
               </div>
               <form id="templateForm" class="form-stack">
                 <label>标题<input id="templateTitle" type="text" placeholder="例如：学习笔记整理" required></label>
-                <label>分类<input id="templateCategory" type="text" placeholder="学习 / 工作 / 写作"></label>
-                <label>标签<input id="templateTags" type="text" placeholder="学习, 总结, 写作"></label>
+                <div class="field-row">
+                  <label>分类<input id="templateCategory" type="text" placeholder="学习 / 工作 / 写作"></label>
+                  <label>标签<input id="templateTags" type="text" placeholder="学习, 总结, 写作"></label>
+                </div>
                 <label>说明<input id="templateDescription" type="text" placeholder="这个模板适合什么场景"></label>
-                <label>模板内容<textarea id="templateContent" rows="9" placeholder="请用{语气}的方式整理：{输入内容}" required></textarea></label>
-                <button type="submit">保存模板</button>
+                <label>模板内容<textarea id="templateContent" rows="10" placeholder="请用{语气}的方式整理：{输入内容}" required></textarea></label>
+                <div class="form-actions">
+                  <button id="saveTemplateButton" type="submit">保存模板</button>
+                  <button id="cancelTemplateEditButton" class="secondary-button is-hidden" type="button">取消编辑</button>
+                </div>
               </form>
             </article>
 
             <article class="panel">
               <div class="panel-head">
                 <div>
-                  <h2>模板库</h2>
-                  <p>点击模板可同步到快速生成区。</p>
+                  <h2>模板清单</h2>
+                  <p>选中模板后会同步到快速生成区。</p>
                 </div>
               </div>
               <div id="templateList" class="resource-list"></div>
@@ -206,51 +240,104 @@
           </div>
         </section>
 
+        <section class="view-section" id="snippetsView">
+          <div class="section-intro">
+            <span class="pixel-pill">Knowledge</span>
+            <h2>知识片段库</h2>
+            <p>沉淀角色设定、写作规范、项目背景和引用素材，让 Prompt 不再每次从零开始。</p>
+          </div>
+
+          <div class="section-layout">
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 id="snippetFormTitle">新增知识片段</h2>
+                  <p>适合保存长期复用的上下文和约束。</p>
+                </div>
+              </div>
+              <form id="snippetForm" class="form-stack">
+                <label>标题<input id="snippetTitle" type="text" placeholder="例如：周报写作规范" required></label>
+                <div class="field-row">
+                  <label>标签<input id="snippetTags" type="text" placeholder="周报, 总结, 工作"></label>
+                  <label>来源<input id="snippetSource" type="text" placeholder="可留空，例如：团队文档"></label>
+                </div>
+                <label>内容<textarea id="snippetContent" rows="10" placeholder="请输入知识片段内容" required></textarea></label>
+                <div class="form-actions">
+                  <button id="saveSnippetButton" type="submit">保存片段</button>
+                  <button id="cancelSnippetEditButton" class="secondary-button is-hidden" type="button">取消编辑</button>
+                </div>
+              </form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2>片段清单</h2>
+                  <p>在仪表盘中勾选后会拼接进最终 Prompt。</p>
+                </div>
+              </div>
+              <div id="snippetList" class="resource-list"></div>
+            </article>
+          </div>
+        </section>
+
         <section class="view-section" id="historyView">
+          <div class="section-intro">
+            <span class="pixel-pill">History</span>
+            <h2>生成记录</h2>
+            <p>复用、复制或删除历史 Prompt，让每次试验都能被回收。</p>
+          </div>
+
           <article class="panel">
             <div class="panel-head">
               <div>
-                <h2>生成记录</h2>
-                <p>查看、复用或删除历史生成的 Prompt。</p>
+                <h2>历史列表</h2>
+                <p>最近 50 条生成记录会显示在这里。</p>
               </div>
-              <button id="reloadHistoryButton" class="ghost-button" type="button">刷新历史</button>
+              <button id="reloadHistoryButton" class="secondary-button" type="button">刷新历史</button>
             </div>
             <div id="historyList" class="record-list"></div>
           </article>
         </section>
 
         <section class="view-section" id="aiView">
+          <div class="section-intro">
+            <span class="pixel-pill">DeepSeek</span>
+            <h2>AI 生成控制台</h2>
+            <p>把最终 Prompt 交给后端，API Key 只从服务器环境变量读取。</p>
+          </div>
+
           <div class="ai-grid">
             <article class="panel ai-control-panel">
               <div class="panel-head">
                 <div>
-                  <h2>AI 生成控制台</h2>
-                  <p>选择 DeepSeek 模型，用最终 Prompt 生成文本。</p>
+                  <h2>输入与参数</h2>
+                  <p>支持流式输出，适合直接观察模型回答过程。</p>
                 </div>
                 <button id="askLlmButton" type="button">流式生成</button>
               </div>
 
               <div class="api-key-note">
-                API Key 从后端环境变量 <code>DEEPSEEK_API_KEY</code> 读取，不会暴露在前端页面。
+                后端读取 <code>DEEPSEEK_API_KEY</code>，前端不会接触密钥。
               </div>
 
               <div class="quick-form">
                 <label>
                   模型
                   <select id="llmModel">
-                    <option value="deepseek-v4-flash" selected>deepseek-v4-flash（速度优先）</option>
-                    <option value="deepseek-v4-pro">deepseek-v4-pro（质量优先）</option>
+                    <option value="deepseek-v4-flash" selected>deepseek-v4-flash</option>
+                    <option value="deepseek-v4-pro">deepseek-v4-pro</option>
                   </select>
                 </label>
                 <label>
-                  temperature
-                  <input id="llmTemperature" type="number" min="0" max="2" step="0.1" value="0.7">
+                  temperature <output id="temperatureValue">0.7</output>
+                  <input id="llmTemperature" type="range" min="0" max="2" step="0.1" value="0.7">
                 </label>
               </div>
 
               <label>
-                当前用于 AI 生成的 Prompt
-                <textarea id="aiPromptInput" rows="12" placeholder="可以从快速生成区自动同步，也可以手动粘贴 Prompt"></textarea>
+                当前 Prompt
+                <textarea id="aiPromptInput" rows="14" placeholder="可从快速生成区同步，也可以手动粘贴 Prompt"></textarea>
               </label>
             </article>
 
@@ -260,7 +347,7 @@
                   <h2>模型回答</h2>
                   <p id="llmHint">等待调用模型。</p>
                 </div>
-                <button id="copyAnswerButton" class="ghost-button" type="button">复制回答</button>
+                <button id="copyAnswerButton" class="secondary-button" type="button">复制回答</button>
               </div>
               <textarea id="llmAnswer" readonly placeholder="流式回答会逐字显示在这里..."></textarea>
             </article>
@@ -270,7 +357,7 @@
     </div>
   </div>
 
-  <div id="toast" class="toast">准备就绪</div>
+  <div id="toast" class="toast" role="status" aria-live="polite">准备就绪</div>
   <script src="./script.js"></script>
 </body>
 </html>
