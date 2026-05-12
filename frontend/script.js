@@ -72,6 +72,8 @@ const elements = {
   refreshButton: document.querySelector("#refreshButton"),
   toast: document.querySelector("#toast"),
   apiStatus: document.querySelector("#apiStatus"),
+  catStatusText: document.querySelector("#catStatusText"),
+  consoleCat: document.querySelector(".console-cat"),
 
   snippetCount: document.querySelector("#snippetCount"),
   templateCount: document.querySelector("#templateCount"),
@@ -123,12 +125,20 @@ const elements = {
   llmHint: document.querySelector("#llmHint"),
   llmAnswer: document.querySelector("#llmAnswer"),
   copyAnswerButton: document.querySelector("#copyAnswerButton"),
+  saveAnswerSnippetButton: document.querySelector("#saveAnswerSnippetButton"),
+  terminalState: document.querySelector("#terminalState"),
+  terminalProgress: document.querySelector("#terminalProgress"),
+  answerStats: document.querySelector("#answerStats"),
 };
 
 function showToast(message, isError = false) {
   elements.toast.textContent = message;
   elements.toast.classList.toggle("error", isError);
   elements.toast.classList.add("show");
+
+  if (isError) {
+    setCatMood("小猫发现了一处需要处理的问题。", "alert");
+  }
 
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => {
@@ -140,6 +150,31 @@ function setApiStatus(message, mode = "pending") {
   elements.apiStatus.textContent = message;
   elements.apiStatus.classList.toggle("ok", mode === "ok");
   elements.apiStatus.classList.toggle("error", mode === "error");
+}
+
+function setCatMood(message, mood = "idle") {
+  elements.catStatusText.textContent = message;
+  elements.consoleCat.classList.remove("is-working", "is-happy", "is-alert");
+
+  if (mood === "working") {
+    elements.consoleCat.classList.add("is-working");
+  }
+
+  if (mood === "happy") {
+    elements.consoleCat.classList.add("is-happy");
+  }
+
+  if (mood === "alert") {
+    elements.consoleCat.classList.add("is-alert");
+  }
+}
+
+function setTerminalStatus(label, progress = 0, isRunning = false, isError = false) {
+  elements.terminalState.textContent = label;
+  elements.terminalProgress.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
+  const wrapper = elements.terminalState.closest(".terminal-status");
+  wrapper.classList.toggle("is-running", isRunning);
+  wrapper.classList.toggle("is-error", isError);
 }
 
 function escapeHtml(value) {
@@ -292,6 +327,7 @@ function renderTemplateSelect() {
     .join("");
   elements.quickTemplateSelect.value = String(state.selectedTemplateId);
   renderVariables();
+  updateWorkSurface();
 }
 
 function renderVariables() {
@@ -342,6 +378,7 @@ function renderSnippetChoices() {
     `)
     .join("");
   updateSelectedSnippetCount();
+  updateWorkSurface();
 }
 
 function renderTemplates() {
@@ -447,6 +484,7 @@ function renderAll() {
   renderTemplates();
   renderSnippets();
   renderHistory();
+  updateWorkSurface();
 }
 
 async function loadData() {
@@ -503,12 +541,57 @@ function collectVariables() {
   return variables;
 }
 
+function getVariableStats() {
+  const template = getSelectedTemplate();
+  const names = template ? extractVariables(template.content) : [];
+  const variables = collectVariables();
+  const completed = names.filter((name) => String(variables[name] || "").trim()).length;
+
+  return {
+    total: names.length,
+    completed,
+    ratio: names.length ? completed / names.length : 1,
+  };
+}
+
 function collectSnippetIds() {
   return Array.from(state.selectedSnippetIds);
 }
 
 function updateSelectedSnippetCount() {
   elements.selectedSnippetCount.textContent = `已选 ${state.selectedSnippetIds.size} 个`;
+}
+
+function updatePromptAssistant() {
+  const variableStats = getVariableStats();
+  const selectedCount = state.selectedSnippetIds.size;
+
+  if (elements.finalPrompt.value.trim()) {
+    elements.promptHint.textContent = `已生成 ${elements.finalPrompt.value.length} 个字符。`;
+    setCatMood("Prompt 已就绪。", "happy");
+  } else if (variableStats.total && variableStats.ratio < 1) {
+    elements.promptHint.textContent = `变量 ${variableStats.completed}/${variableStats.total}，片段 ${selectedCount}。`;
+    setCatMood("补齐变量后生成。");
+  } else if (state.selectedSnippetIds.size === 0) {
+    elements.promptHint.textContent = "可直接生成，也可选择知识片段。";
+    setCatMood("准备生成。");
+  } else {
+    elements.promptHint.textContent = `已选 ${selectedCount} 个知识片段。`;
+    setCatMood("准备生成。");
+  }
+}
+
+function updateAnswerStats() {
+  elements.answerStats.textContent = `${elements.llmAnswer.value.length} 字符`;
+}
+
+function updateWorkSurface() {
+  updatePromptAssistant();
+  updateAnswerStats();
+}
+
+function formatSnippetBlock(item) {
+  return `- ${item.title}\n${item.content}`;
 }
 
 function buildLocalPrompt(template, variables, snippetIds) {
@@ -523,7 +606,7 @@ function buildLocalPrompt(template, variables, snippetIds) {
     return prompt;
   }
 
-  return `${prompt}\n\n参考知识片段：\n${selectedSnippets.map((item) => `- ${item.title}\n${item.content}`).join("\n\n")}`;
+  return `${prompt}\n\n参考知识片段：\n${selectedSnippets.map(formatSnippetBlock).join("\n\n")}`;
 }
 
 async function generatePrompt() {
@@ -740,6 +823,8 @@ async function askLlm() {
   try {
     elements.askLlmButton.disabled = true;
     elements.llmAnswer.value = "";
+    updateAnswerStats();
+    setTerminalStatus("RUN", 18, true);
     elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接...`;
 
     const response = await fetch("/api/llm/answer/stream", {
@@ -758,7 +843,7 @@ async function askLlm() {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let answerLength = 0;
+    setTerminalStatus("READ", 62, true);
     elements.llmHint.textContent = `模型：${payload.model}，正在流式输出...`;
 
     while (true) {
@@ -769,23 +854,50 @@ async function askLlm() {
 
       const chunk = decoder.decode(value, { stream: true });
       elements.llmAnswer.value += chunk;
-      answerLength += chunk.length;
+      updateAnswerStats();
       elements.llmAnswer.scrollTop = elements.llmAnswer.scrollHeight;
     }
 
     const tail = decoder.decode();
     if (tail) {
       elements.llmAnswer.value += tail;
-      answerLength += tail.length;
+      updateAnswerStats();
     }
 
-    elements.llmHint.textContent = `模型：${payload.model}，输出完成，共 ${answerLength} 个字符`;
+    setTerminalStatus("DONE", 100);
+    elements.llmHint.textContent = `模型：${payload.model}，输出完成。`;
     showToast("AI 回答已完成");
   } catch (error) {
+    setTerminalStatus("ERR", 100, false, true);
     elements.llmHint.textContent = error.message;
     showToast("AI 生成失败，请检查 API Key 或网络", true);
   } finally {
     elements.askLlmButton.disabled = false;
+  }
+}
+
+async function saveAnswerAsSnippet() {
+  const content = elements.llmAnswer.value.trim();
+  if (!content) {
+    showToast("暂无可保存的回答", true);
+    return;
+  }
+
+  try {
+    await requestJson("/api/snippets", {
+      method: "POST",
+      body: JSON.stringify({
+        title: `AI 回答 ${new Date().toLocaleString()}`,
+        tags: ["AI回答"],
+        source: "PromptStudio AI",
+        content,
+      }),
+    });
+    await loadData();
+    switchView("snippets");
+    showToast("AI 回答已存为片段");
+  } catch (error) {
+    showToast(error.message, true);
   }
 }
 
@@ -959,6 +1071,7 @@ function bindEvents() {
   });
   elements.askLlmButton.addEventListener("click", askLlm);
   elements.copyAnswerButton.addEventListener("click", () => copyText(elements.llmAnswer.value, "AI 回答已复制"));
+  elements.saveAnswerSnippetButton.addEventListener("click", saveAnswerAsSnippet);
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {

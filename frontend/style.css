@@ -515,6 +515,27 @@ code {
   height: 116px;
   margin: 22px auto 0;
   image-rendering: pixelated;
+  transform-origin: 50% 80%;
+}
+
+.console-cat.is-working {
+  animation: catTap 0.62s steps(2) infinite;
+}
+
+.console-cat.is-happy {
+  animation: catHop 0.42s steps(2) 2;
+}
+
+.console-cat.is-alert {
+  animation: catAlert 0.28s steps(2) 4;
+}
+
+.cat-status-text {
+  margin-top: 8px;
+  color: rgba(255, 248, 234, 0.72);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  text-align: center;
 }
 
 .stats-grid {
@@ -813,6 +834,29 @@ output {
   border-radius: var(--radius);
 }
 
+.terminal-status i {
+  display: block;
+  height: 14px;
+  overflow: hidden;
+  background: rgba(47, 40, 31, 0.12);
+  border: 2px solid var(--line);
+  border-radius: 999px;
+}
+
+.terminal-status b {
+  display: block;
+  width: 0%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--mint) 0,
+    var(--mint) 8px,
+    #9fdfc5 8px,
+    #9fdfc5 12px
+  );
+  transition: width 0.18s ease;
+}
+
 #finalPrompt,
 #aiPromptInput,
 #llmAnswer {
@@ -895,6 +939,46 @@ output {
   background-size: 100% 32px;
 }
 
+.terminal-status {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) 78px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px;
+  color: rgba(255, 248, 234, 0.78);
+  background: rgba(255, 248, 234, 0.08);
+  border: 2px solid rgba(255, 248, 234, 0.22);
+  border-radius: var(--radius);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.terminal-status span {
+  color: #9fdfc5;
+  font-weight: 900;
+}
+
+.terminal-status.is-running span {
+  color: #f4c66a;
+}
+
+.terminal-status.is-error span {
+  color: #ff9c92;
+}
+
+.terminal-status.is-running b {
+  width: 62%;
+  animation: terminalLoad 1s steps(8) infinite;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--warning) 0,
+    var(--warning) 8px,
+    var(--accent) 8px,
+    var(--accent) 12px
+  );
+}
+
 .toast {
   position: fixed;
   right: 24px;
@@ -940,6 +1024,48 @@ output {
 
 ::-webkit-scrollbar-track {
   background: rgba(47, 40, 31, 0.08);
+}
+
+@keyframes catTap {
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes catHop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes catAlert {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes terminalLoad {
+  0% {
+    transform: translateX(-70%);
+  }
+
+  100% {
+    transform: translateX(170%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1055,7 +1181,8 @@ output {
   .record-actions,
   .button-row,
   .form-actions,
-  .hero-actions {
+  .hero-actions,
+  .terminal-status {
     display: grid;
     grid-template-columns: 1fr;
   }

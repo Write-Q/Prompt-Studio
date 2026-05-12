@@ -2,47 +2,29 @@ import sqlite3
 from pathlib import Path
 
 
-# 项目根目录，对应 PromptStudio/
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# 数据库存放目录，对应 PromptStudio/data/
 DATA_DIR = BASE_DIR / "data"
-
-# SQLite 数据库文件路径
 DB_PATH = DATA_DIR / "app.db"
 
 
+class AppConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def get_connection() -> sqlite3.Connection:
-    """
-    获取数据库连接。
-
-    这里统一处理数据库目录创建和连接配置，
-    后续路由层、服务层如果要访问数据库，都应该复用这个方法。
-    """
-    # 如果 data 目录还不存在，就自动创建
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    # 建立 SQLite 连接
-    connection = sqlite3.connect(DB_PATH)
-
-    # 让查询结果支持按列名读取，后续转字典时更方便
+    connection = sqlite3.connect(DB_PATH, factory=AppConnection)
     connection.row_factory = sqlite3.Row
     return connection
 
 
 def init_db() -> None:
-    """
-    初始化数据库表结构。
-
-    当前阶段先只负责创建三张核心业务表：
-    1. prompt_templates
-    2. knowledge_snippets
-    3. generation_history
-    """
     with get_connection() as connection:
         cursor = connection.cursor()
-
-        # Prompt 模板表
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS prompt_templates (
@@ -57,8 +39,6 @@ def init_db() -> None:
             )
             """
         )
-
-        # 知识片段表
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS knowledge_snippets (
@@ -72,8 +52,6 @@ def init_db() -> None:
             )
             """
         )
-
-        # 生成历史表
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS generation_history (
@@ -86,12 +64,9 @@ def init_db() -> None:
             )
             """
         )
-
-        # 提交建表操作
         connection.commit()
 
 
 if __name__ == "__main__":
-    # 允许直接运行这个文件，用来单独验证数据库是否初始化成功
     init_db()
     print(f"数据库初始化完成：{DB_PATH}")
