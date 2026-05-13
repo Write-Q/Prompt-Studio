@@ -267,3 +267,22 @@ class LlmAnswerResponse(BaseModel):
 
     model: str
     answer: str
+
+
+class PromptOptimizeRequest(BaseModel):
+    prompt: str = Field(..., min_length=1)
+    model: str = Field(default="deepseek-v4-flash")
+    temperature: float = Field(default=0.2, ge=0, le=2)
+
+    @field_validator("prompt", "model")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        cleaned_value = value.strip()
+        if not cleaned_value:
+            raise ValueError("字段内容不能为空")
+        return cleaned_value
+
+
+class PromptOptimizeResponse(BaseModel):
+    model: str
+    optimized_prompt: str
