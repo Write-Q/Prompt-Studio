@@ -15,7 +15,7 @@ router = APIRouter(
 @router.post("/generate", response_model=GenerateResponse)
 def generate_prompt_item(payload: GenerateRequest) -> GenerateResponse:
     """
-    生成最终 Prompt。
+    生成预生成 Prompt。
 
     路由层只接收请求并调用生成服务，
     不直接处理模板替换、知识片段拼接或历史保存。

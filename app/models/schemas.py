@@ -220,12 +220,33 @@ class GenerateResponse(BaseModel):
     history_id: int | None = None
 
 
+class GenerationHistoryCreate(BaseModel):
+    """
+    手动保存预生成 Prompt 的请求体。
+
+    这里保存的是用户当前确认的预生成文本，而不是重新按模板生成。
+    """
+
+    template_id: int = Field(..., description="预生成 Prompt 关联的模板 ID")
+    variables: dict[str, str] = Field(default_factory=dict, description="保存时的模板变量快照")
+    snippet_ids: list[int] = Field(default_factory=list, description="保存时关联的知识片段 ID")
+    final_prompt: str = Field(..., min_length=1, description="用户决定保存的预生成 Prompt")
+
+    @field_validator("final_prompt")
+    @classmethod
+    def validate_final_prompt(cls, value: str) -> str:
+        cleaned_value = value.strip()
+        if not cleaned_value:
+            raise ValueError("预生成 Prompt 不能为空")
+        return cleaned_value
+
+
 class GenerationHistoryResponse(BaseModel):
     """
     生成历史响应体。
 
     历史记录是系统复盘和再次使用 Prompt 的入口，
-    所以这里把保存时的变量、知识片段 ID 和最终 Prompt 都返回给前端。
+    所以这里把保存时的变量、知识片段 ID 和预生成 Prompt 都返回给前端。
     """
 
     id: int
@@ -240,11 +261,11 @@ class LlmAnswerRequest(BaseModel):
     """
     大模型回答请求体。
 
-    当前只负责把最终 Prompt 发给 DeepSeek，
+    当前只负责把预生成 Prompt 发给 DeepSeek，
     API Key 从后端环境变量读取，不从前端传入，避免泄露。
     """
 
-    prompt: str = Field(..., min_length=1, description="要发送给大模型的最终 Prompt")
+    prompt: str = Field(..., min_length=1, description="要发送给大模型的预生成 Prompt")
     model: str = Field(default="deepseek-v4-flash", description="DeepSeek 模型名称")
     temperature: float = Field(default=0.7, ge=0, le=2, description="生成随机性")
 

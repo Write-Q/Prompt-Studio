@@ -73,6 +73,7 @@ button {
   box-shadow: 3px 3px 0 var(--accent);
   font-weight: 800;
   cursor: pointer;
+  touch-action: manipulation;
   transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
 }
 
@@ -345,28 +346,7 @@ code {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 420px;
-}
-
-.search-box {
-  position: relative;
-  display: block;
-  flex: 1;
-  min-width: 220px;
-}
-
-.search-box span {
-  position: absolute;
-  top: 50%;
-  left: 13px;
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 900;
-  transform: translateY(-50%);
-}
-
-.search-box input {
-  padding-left: 54px;
+  justify-content: flex-end;
 }
 
 .content {
@@ -587,6 +567,76 @@ code {
   gap: 18px;
 }
 
+.workflow-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.workflow-step {
+  position: relative;
+  min-width: 0;
+  padding: 12px 12px 11px;
+  background: rgba(255, 248, 234, 0.74);
+  border: 2px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 rgba(47, 40, 31, 0.14);
+}
+
+.workflow-step::after {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  width: 10px;
+  height: 10px;
+  content: "";
+  background: var(--line-soft);
+  box-shadow:
+    -10px 0 0 rgba(47, 40, 31, 0.08),
+    0 -10px 0 rgba(47, 40, 31, 0.08);
+}
+
+.workflow-step span,
+.workflow-step small {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.workflow-step strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.workflow-step.is-active {
+  background: #fff0cb;
+  border-color: var(--line);
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+.workflow-step.is-done {
+  background: #eaf6ef;
+  border-color: rgba(62, 143, 122, 0.54);
+}
+
+.section-layout {
+  align-items: start;
+}
+
+.section-layout .editor-panel {
+  align-self: start;
+  position: sticky;
+  top: 18px;
+}
+
+.section-layout .library-panel {
+  min-height: min(660px, calc(100vh - 190px));
+}
+
 .panel {
   min-width: 0;
   padding: 20px;
@@ -609,6 +659,19 @@ code {
   font-size: 13px;
 }
 
+.panel-count {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 4px 9px;
+  color: #4b2b12;
+  background: #ffe7ba;
+  border: 2px solid #e6bf7a;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 .button-row,
 .form-actions {
   display: flex;
@@ -624,12 +687,31 @@ code {
   gap: 12px;
 }
 
+.template-select-row {
+  grid-template-columns: 1fr;
+}
+
 .form-stack,
 .choice-list,
 .resource-list,
 .record-list {
   display: grid;
   gap: 12px;
+}
+
+.section-layout .resource-list {
+  max-height: clamp(380px, 58vh, 660px);
+  overflow: auto;
+  align-content: start;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.prompt-action-note {
+  margin-top: 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .builder-section {
@@ -768,9 +850,19 @@ output {
   gap: 12px;
 }
 
+.resource-row > div:first-child,
+.record-row > div:first-child {
+  min-width: 0;
+}
+
 .resource-title,
 .record-title {
   font-weight: 950;
+}
+
+.resource-meta,
+.record-meta {
+  overflow-wrap: anywhere;
 }
 
 .resource-actions,
@@ -858,6 +950,7 @@ output {
 }
 
 #finalPrompt,
+#optimizedPrompt,
 #aiPromptInput,
 #llmAnswer {
   min-height: 440px;
@@ -868,6 +961,22 @@ output {
   background:
     linear-gradient(rgba(47, 40, 31, 0.045) 1px, transparent 1px),
     #fffaf0;
+  background-size: 100% 32px;
+}
+
+.optimize-box {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed var(--line);
+}
+
+#optimizedPrompt {
+  min-height: 260px;
+  background:
+    linear-gradient(rgba(47, 40, 31, 0.045) 1px, transparent 1px),
+    #fff4dc;
   background-size: 100% 32px;
 }
 
@@ -1129,6 +1238,14 @@ output {
     grid-template-columns: 1fr;
   }
 
+  .workflow-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .section-layout .editor-panel {
+    position: static;
+  }
+
   .hero-console {
     max-width: 420px;
   }
@@ -1175,6 +1292,14 @@ output {
 
   .section-intro h2 {
     font-size: 28px;
+  }
+
+  .workflow-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .section-layout .resource-list {
+    max-height: 420px;
   }
 
   .resource-actions,

@@ -1,7 +1,9 @@
 import json
 
 from app.database import get_connection
-from app.models.schemas import GenerationHistoryResponse
+from app.models.schemas import GenerationHistoryCreate, GenerationHistoryResponse
+from app.services.common import now_text
+from app.services.template_service import get_template_by_id
 
 
 class HistoryNotFoundError(Exception):
@@ -70,6 +72,35 @@ def list_history(limit: int = 20) -> list[GenerationHistoryResponse]:
         rows = cursor.fetchall()
 
     return [_build_history_response(row) for row in rows]
+
+
+def create_history(payload: GenerationHistoryCreate) -> GenerationHistoryResponse:
+    """
+    手动保存用户当前确认的预生成 Prompt。
+    """
+    get_template_by_id(payload.template_id)
+
+    with get_connection() as connection:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            INSERT INTO generation_history (
+                template_id, variables_json, snippet_ids, final_prompt, created_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                payload.template_id,
+                json.dumps(payload.variables, ensure_ascii=False),
+                json.dumps(payload.snippet_ids, ensure_ascii=False),
+                payload.final_prompt,
+                now_text(),
+            ),
+        )
+        connection.commit()
+        history_id = cursor.lastrowid
+
+    return get_history_by_id(history_id)
 
 
 def get_history_by_id(history_id: int) -> GenerationHistoryResponse:

@@ -58,8 +58,16 @@ const pageMeta = {
   templates: ["提示词模板", "沉淀高频任务的结构，让好 Prompt 可以复用。"],
   snippets: ["知识片段", "保存背景资料、写作规范和项目上下文。"],
   history: ["生成记录", "回收每次试验，不让好结果只出现一次。"],
-  ai: ["AI 生成", "把最终 Prompt 交给 DeepSeek，并查看流式回答。"],
+  ai: ["AI 生成", "把预生成 Prompt 交给 DeepSeek，并查看流式回答。"],
 };
+
+const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 
 const elements = {
   mobileMenuButton: document.querySelector("#mobileMenuButton"),
@@ -68,7 +76,6 @@ const elements = {
   pageSubtitle: document.querySelector("#pageSubtitle"),
   navItems: document.querySelectorAll(".nav-item"),
   viewSections: document.querySelectorAll(".view-section"),
-  globalSearch: document.querySelector("#globalSearch"),
   refreshButton: document.querySelector("#refreshButton"),
   toast: document.querySelector("#toast"),
   apiStatus: document.querySelector("#apiStatus"),
@@ -81,14 +88,21 @@ const elements = {
   latestUpdate: document.querySelector("#latestUpdate"),
 
   quickTemplateSelect: document.querySelector("#quickTemplateSelect"),
-  quickKeyword: document.querySelector("#quickKeyword"),
   variableFields: document.querySelector("#variableFields"),
   variableCount: document.querySelector("#variableCount"),
   snippetChoices: document.querySelector("#snippetChoices"),
   selectedSnippetCount: document.querySelector("#selectedSnippetCount"),
-  generatePromptButton: document.querySelector("#generatePromptButton"),
+  workflowSteps: document.querySelectorAll("[data-workflow-step]"),
+  previewPromptButton: document.querySelector("#previewPromptButton"),
+  savePromptButton: document.querySelector("#savePromptButton"),
   finalPrompt: document.querySelector("#finalPrompt"),
   promptHint: document.querySelector("#promptHint"),
+  optimizePromptButton: document.querySelector("#optimizePromptButton"),
+  optimizeBox: document.querySelector("#optimizeBox"),
+  optimizeHint: document.querySelector("#optimizeHint"),
+  optimizedPrompt: document.querySelector("#optimizedPrompt"),
+  applyOptimizedButton: document.querySelector("#applyOptimizedButton"),
+  copyOptimizedButton: document.querySelector("#copyOptimizedButton"),
   copyPromptButton: document.querySelector("#copyPromptButton"),
   pushToAiButton: document.querySelector("#pushToAiButton"),
   aiPromptInput: document.querySelector("#aiPromptInput"),
@@ -102,6 +116,7 @@ const elements = {
   templateContent: document.querySelector("#templateContent"),
   saveTemplateButton: document.querySelector("#saveTemplateButton"),
   cancelTemplateEditButton: document.querySelector("#cancelTemplateEditButton"),
+  templateListCount: document.querySelector("#templateListCount"),
   templateList: document.querySelector("#templateList"),
 
   snippetForm: document.querySelector("#snippetForm"),
@@ -112,6 +127,7 @@ const elements = {
   snippetContent: document.querySelector("#snippetContent"),
   saveSnippetButton: document.querySelector("#saveSnippetButton"),
   cancelSnippetEditButton: document.querySelector("#cancelSnippetEditButton"),
+  snippetListCount: document.querySelector("#snippetListCount"),
   snippetList: document.querySelector("#snippetList"),
 
   recentHistoryList: document.querySelector("#recentHistoryList"),
@@ -169,6 +185,17 @@ function setCatMood(message, mood = "idle") {
   }
 }
 
+function setWorkflowStep(activeStep = "compose") {
+  const stepOrder = ["compose", "preview", "optimize", "save"];
+  const activeIndex = Math.max(0, stepOrder.indexOf(activeStep));
+
+  elements.workflowSteps.forEach((step) => {
+    const index = stepOrder.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("is-active", index === activeIndex);
+    step.classList.toggle("is-done", index >= 0 && index < activeIndex);
+  });
+}
+
 function setTerminalStatus(label, progress = 0, isRunning = false, isError = false) {
   elements.terminalState.textContent = label;
   elements.terminalProgress.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
@@ -206,31 +233,6 @@ function extractVariables(content) {
   }
 
   return variables;
-}
-
-function getKeyword() {
-  return elements.globalSearch.value.trim().toLowerCase();
-}
-
-function matchesKeyword(item) {
-  const keyword = getKeyword();
-  if (!keyword) {
-    return true;
-  }
-
-  return [
-    item.title,
-    item.category,
-    item.source,
-    item.description,
-    item.content,
-    item.final_prompt,
-    item.created_at,
-    (item.tags || []).join(" "),
-  ]
-    .join(" ")
-    .toLowerCase()
-    .includes(keyword);
 }
 
 async function requestJson(url, options = {}) {
@@ -288,7 +290,12 @@ function formatDate(value) {
     return value || "--";
   }
 
-  return String(value).replace("T", " ").slice(0, 16);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return dateTimeFormatter.format(date).replace(/\//g, "-");
 }
 
 function renderTags(tags = [], category = null) {
@@ -310,7 +317,7 @@ function renderStats() {
   elements.snippetCount.textContent = state.snippets.length;
   elements.templateCount.textContent = state.templates.length;
   elements.historyCount.textContent = state.history.length;
-  elements.latestUpdate.textContent = formatDate(state.history[0]?.created_at)?.slice(5) || "--";
+  elements.latestUpdate.textContent = formatDate(state.history[0]?.created_at) || "--";
 }
 
 function renderTemplateSelect() {
@@ -351,14 +358,14 @@ function renderVariables() {
     .map((name) => `
       <label>
         ${escapeHtml(name)}
-        <input data-variable-name="${escapeHtml(name)}" type="text" placeholder="填写 ${escapeHtml(name)}">
+        <input data-variable-name="${escapeHtml(name)}" name="var_${escapeHtml(name)}" type="text" autocomplete="off" placeholder="填写 ${escapeHtml(name)}">
       </label>
     `)
     .join("");
 }
 
 function renderSnippetChoices() {
-  const snippets = state.snippets.filter(matchesKeyword);
+  const snippets = state.snippets;
 
   if (!snippets.length) {
     elements.snippetChoices.innerHTML = '<div class="empty-state">暂无可选知识片段。</div>';
@@ -369,7 +376,7 @@ function renderSnippetChoices() {
   elements.snippetChoices.innerHTML = snippets
     .map((item) => `
       <label class="choice-card">
-        <input type="checkbox" value="${item.id}" data-snippet-choice ${state.selectedSnippetIds.has(item.id) ? "checked" : ""}>
+        <input type="checkbox" name="snippet_choice" value="${item.id}" data-snippet-choice ${state.selectedSnippetIds.has(item.id) ? "checked" : ""}>
         <span>
           <strong>${escapeHtml(item.title)}</strong>
           <small>${escapeHtml((item.tags || []).join(" / ") || item.source || "无标签")}</small>
@@ -382,7 +389,8 @@ function renderSnippetChoices() {
 }
 
 function renderTemplates() {
-  const templates = state.templates.filter(matchesKeyword);
+  const templates = state.templates;
+  elements.templateListCount.textContent = `${templates.length} 个模板`;
 
   if (!templates.length) {
     elements.templateList.innerHTML = '<div class="empty-state">暂无模板。试着新建一个常用任务模板。</div>';
@@ -411,7 +419,8 @@ function renderTemplates() {
 }
 
 function renderSnippets() {
-  const snippets = state.snippets.filter(matchesKeyword);
+  const snippets = state.snippets;
+  elements.snippetListCount.textContent = `${snippets.length} 个片段`;
 
   if (!snippets.length) {
     elements.snippetList.innerHTML = '<div class="empty-state">暂无知识片段。可以先保存一条写作规范或项目背景。</div>';
@@ -443,7 +452,7 @@ function renderSnippets() {
 
 function historyCard(item) {
   const preview = item.final_prompt.length > 170
-    ? `${item.final_prompt.slice(0, 170)}...`
+    ? `${item.final_prompt.slice(0, 170)}…`
     : item.final_prompt;
 
   return `
@@ -465,7 +474,7 @@ function historyCard(item) {
 }
 
 function renderHistory() {
-  const history = state.history.filter(matchesKeyword);
+  const history = state.history;
   const recent = history.slice(0, 5);
 
   elements.recentHistoryList.innerHTML = recent.length
@@ -474,7 +483,7 @@ function renderHistory() {
 
   elements.historyList.innerHTML = history.length
     ? history.map(historyCard).join("")
-    : '<div class="empty-state">暂无历史记录。生成 Prompt 后会自动保存到这里。</div>';
+    : '<div class="empty-state">暂无历史记录。保存预生成 Prompt 后会出现在这里。</div>';
 }
 
 function renderAll() {
@@ -534,8 +543,7 @@ function collectVariables() {
 
   inputs.forEach((input) => {
     const name = input.dataset.variableName;
-    const shouldUseMainInput = /输入|内容|主题|关键词|问题|任务/.test(name);
-    variables[name] = input.value.trim() || (shouldUseMainInput ? elements.quickKeyword.value.trim() : "");
+    variables[name] = input.value.trim();
   });
 
   return variables;
@@ -567,17 +575,17 @@ function updatePromptAssistant() {
   const selectedCount = state.selectedSnippetIds.size;
 
   if (elements.finalPrompt.value.trim()) {
-    elements.promptHint.textContent = `已生成 ${elements.finalPrompt.value.length} 个字符。`;
-    setCatMood("Prompt 已就绪。", "happy");
+    elements.promptHint.textContent = `当前预生成 Prompt ${elements.finalPrompt.value.length} 个字符，可复制、优化或送去 AI。`;
+    setCatMood("Prompt 已就绪，可以继续优化或生成。", "happy");
   } else if (variableStats.total && variableStats.ratio < 1) {
-    elements.promptHint.textContent = `变量 ${variableStats.completed}/${variableStats.total}，片段 ${selectedCount}。`;
-    setCatMood("补齐变量后生成。");
+    elements.promptHint.textContent = `变量 ${variableStats.completed}/${variableStats.total}，已选片段 ${selectedCount}。`;
+    setCatMood("补齐变量后可以先预览 Prompt。");
   } else if (state.selectedSnippetIds.size === 0) {
-    elements.promptHint.textContent = "可直接生成，也可选择知识片段。";
-    setCatMood("准备生成。");
+    elements.promptHint.textContent = "可先预览 Prompt，也可以选择知识片段增加上下文。";
+    setCatMood("材料已基本就绪，可以预览。");
   } else {
-    elements.promptHint.textContent = `已选 ${selectedCount} 个知识片段。`;
-    setCatMood("准备生成。");
+    elements.promptHint.textContent = `已选 ${selectedCount} 个知识片段，可预览 Prompt。`;
+    setCatMood("上下文已挂载，可以预览。");
   }
 }
 
@@ -590,26 +598,13 @@ function updateWorkSurface() {
   updateAnswerStats();
 }
 
-function formatSnippetBlock(item) {
-  return `- ${item.title}\n${item.content}`;
+function hideOptimizeBox() {
+  elements.optimizeBox.classList.add("is-hidden");
+  elements.optimizedPrompt.value = "";
+  elements.optimizeHint.textContent = "由 LLM 优化，不会自动覆盖原 Prompt。";
 }
 
-function buildLocalPrompt(template, variables, snippetIds) {
-  let prompt = template.content;
-
-  Object.entries(variables).forEach(([name, value]) => {
-    prompt = prompt.replaceAll(`{${name}}`, value || elements.quickKeyword.value.trim() || `{${name}}`);
-  });
-
-  const selectedSnippets = state.snippets.filter((item) => snippetIds.includes(item.id));
-  if (!selectedSnippets.length) {
-    return prompt;
-  }
-
-  return `${prompt}\n\n参考知识片段：\n${selectedSnippets.map(formatSnippetBlock).join("\n\n")}`;
-}
-
-async function generatePrompt() {
+async function previewPrompt() {
   const template = getSelectedTemplate();
   if (!template) {
     showToast("请先选择模板", true);
@@ -624,8 +619,9 @@ async function generatePrompt() {
   };
 
   try {
-    elements.generatePromptButton.disabled = true;
-    elements.promptHint.textContent = "正在生成 Prompt...";
+    elements.previewPromptButton.disabled = true;
+    setWorkflowStep("preview");
+    elements.promptHint.textContent = "正在预览预生成 Prompt…";
 
     const result = await requestJson("/api/generate", {
       method: "POST",
@@ -634,20 +630,112 @@ async function generatePrompt() {
 
     elements.finalPrompt.value = result.final_prompt;
     elements.aiPromptInput.value = result.final_prompt;
-    elements.promptHint.textContent = result.missing_variables.length
-      ? `未填写变量：${result.missing_variables.join("、")}`
-      : `生成成功，历史 ID：${result.history_id}`;
-    await loadHistory();
-    showToast("Prompt 已生成");
+    hideOptimizeBox();
+
+    const missingVariables = result.missing_variables || [];
+    elements.promptHint.textContent = missingVariables.length
+      ? `预生成 Prompt 已更新，未填写变量：${missingVariables.join("、")}。可继续编辑或保存当前草稿。`
+      : "预生成 Prompt 已更新，可优化、复制、送去 AI 或保存到历史。";
+    setCatMood("预生成 Prompt 已更新，保存由你决定。", "happy");
+    showToast("预生成 Prompt 已更新");
+    return result.final_prompt;
   } catch (error) {
-    const localPrompt = buildLocalPrompt(template, payload.variables, payload.snippet_ids);
-    elements.finalPrompt.value = localPrompt;
-    elements.aiPromptInput.value = localPrompt;
-    elements.promptHint.textContent = "后端生成失败，当前显示本地拼接结果。";
+    setWorkflowStep("compose");
+    elements.promptHint.textContent = "预览失败，请稍后再试。";
+    showToast(error.message, true);
+    return "";
+  } finally {
+    elements.previewPromptButton.disabled = false;
+  }
+}
+
+async function saveCurrentPrompt() {
+  const template = getSelectedTemplate();
+  const finalPrompt = elements.finalPrompt.value.trim();
+
+  if (!template) {
+    showToast("请先选择模板", true);
+    return;
+  }
+
+  if (!finalPrompt) {
+    showToast("暂无可保存的预生成 Prompt", true);
+    return;
+  }
+
+  try {
+    elements.savePromptButton.disabled = true;
+    setWorkflowStep("save");
+    elements.promptHint.textContent = "正在保存到历史…";
+
+    const history = await requestJson("/api/history", {
+      method: "POST",
+      body: JSON.stringify({
+        template_id: template.id,
+        variables: collectVariables(),
+        snippet_ids: collectSnippetIds(),
+        final_prompt: finalPrompt,
+      }),
+    });
+
+    await loadHistory();
+    elements.promptHint.textContent = `已保存到历史 ID：${history.id}。`;
+    setCatMood("这版预生成 Prompt 已收进历史。", "happy");
+    showToast("预生成 Prompt 已保存到历史");
+  } catch (error) {
     showToast(error.message, true);
   } finally {
-    elements.generatePromptButton.disabled = false;
+    elements.savePromptButton.disabled = false;
   }
+}
+
+async function optimizePrompt() {
+  const prompt = elements.finalPrompt.value.trim() || await previewPrompt();
+  if (!prompt.trim()) {
+    showToast("暂无可优化的 Prompt", true);
+    return;
+  }
+
+  try {
+    elements.optimizePromptButton.disabled = true;
+    setWorkflowStep("optimize");
+    elements.optimizeHint.textContent = "正在调用 LLM 优化 Prompt…";
+    elements.optimizeBox.classList.remove("is-hidden");
+    setCatMood("正在把预生成 Prompt 打磨得更清楚。", "working");
+
+    const result = await requestJson("/api/llm/optimize-prompt", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt,
+        model: elements.llmModel.value || "deepseek-v4-flash",
+        temperature: 0.2,
+      }),
+    });
+
+    elements.optimizedPrompt.value = result.optimized_prompt;
+    elements.optimizeHint.textContent = `优化完成，模型：${result.model}`;
+    setCatMood("优化稿已准备好，可以采用或复制。", "happy");
+    showToast("预生成 Prompt 优化完成");
+  } catch (error) {
+    elements.optimizeHint.textContent = error.message;
+    showToast(error.message, true);
+  } finally {
+    elements.optimizePromptButton.disabled = false;
+  }
+}
+
+function applyOptimizedPrompt() {
+  const optimized = elements.optimizedPrompt.value.trim();
+  if (!optimized) {
+    showToast("暂无优化稿可采用", true);
+    return;
+  }
+
+  elements.finalPrompt.value = optimized;
+  elements.aiPromptInput.value = optimized;
+  setWorkflowStep("save");
+  elements.promptHint.textContent = "已采用优化稿，可送去 AI、复制或保存。";
+  setCatMood("优化稿已放入工作台。", "happy");
 }
 
 async function copyText(text, message) {
@@ -825,7 +913,7 @@ async function askLlm() {
     elements.llmAnswer.value = "";
     updateAnswerStats();
     setTerminalStatus("RUN", 18, true);
-    elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接...`;
+    elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接…`;
 
     const response = await fetch("/api/llm/answer/stream", {
       method: "POST",
@@ -844,7 +932,7 @@ async function askLlm() {
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
     setTerminalStatus("READ", 62, true);
-    elements.llmHint.textContent = `模型：${payload.model}，正在流式输出...`;
+    elements.llmHint.textContent = `模型：${payload.model}，正在流式输出…`;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -887,7 +975,7 @@ async function saveAnswerAsSnippet() {
     await requestJson("/api/snippets", {
       method: "POST",
       body: JSON.stringify({
-        title: `AI 回答 ${new Date().toLocaleString()}`,
+        title: `AI 回答 ${dateTimeFormatter.format(new Date()).replace(/\//g, "-")}`,
         tags: ["AI回答"],
         source: "PromptStudio AI",
         content,
@@ -919,21 +1007,23 @@ function bindEvents() {
 
   document.querySelector("[data-focus-builder]").addEventListener("click", () => {
     document.querySelector("#builderArea").scrollIntoView({ behavior: "smooth", block: "start" });
-    elements.quickKeyword.focus();
+    const firstVariableInput = elements.variableFields.querySelector("[data-variable-name]");
+    (firstVariableInput || elements.quickTemplateSelect).focus();
   });
 
   elements.refreshButton.addEventListener("click", loadData);
-  elements.globalSearch.addEventListener("input", renderAll);
-  elements.quickKeyword.addEventListener("input", () => {
-    if (!elements.finalPrompt.value) {
-      elements.promptHint.textContent = "填写核心输入后即可生成 Prompt。";
-    }
+  elements.variableFields.addEventListener("input", () => {
+    setWorkflowStep("compose");
+    updatePromptAssistant();
   });
 
   elements.quickTemplateSelect.addEventListener("change", () => {
     state.selectedTemplateId = Number(elements.quickTemplateSelect.value);
     renderVariables();
     renderTemplates();
+    hideOptimizeBox();
+    setWorkflowStep("compose");
+    updatePromptAssistant();
   });
 
   elements.snippetChoices.addEventListener("change", (event) => {
@@ -951,14 +1041,22 @@ function bindEvents() {
 
     updateSelectedSnippetCount();
     renderSnippets();
+    hideOptimizeBox();
+    setWorkflowStep("compose");
+    updatePromptAssistant();
   });
 
-  elements.generatePromptButton.addEventListener("click", generatePrompt);
-  elements.copyPromptButton.addEventListener("click", () => copyText(elements.finalPrompt.value, "Prompt 已复制"));
+  elements.previewPromptButton.addEventListener("click", previewPrompt);
+  elements.savePromptButton.addEventListener("click", saveCurrentPrompt);
+  elements.optimizePromptButton.addEventListener("click", optimizePrompt);
+  elements.applyOptimizedButton.addEventListener("click", applyOptimizedPrompt);
+  elements.copyOptimizedButton.addEventListener("click", () => copyText(elements.optimizedPrompt.value, "优化稿已复制"));
+  elements.copyPromptButton.addEventListener("click", () => copyText(elements.finalPrompt.value, "预生成 Prompt 已复制"));
   elements.pushToAiButton.addEventListener("click", () => {
     elements.aiPromptInput.value = elements.finalPrompt.value;
+    setWorkflowStep("save");
     switchView("ai");
-    showToast("Prompt 已同步到 AI 控制台");
+    showToast("预生成 Prompt 已同步到 AI 控制台");
   });
 
   elements.templateForm.addEventListener("submit", saveTemplate);
