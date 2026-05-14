@@ -22,4 +22,4 @@ def deserialize_tags(tags_text: str | None) -> list[str]:
     if isinstance(parsed, list):
         return [str(tag).strip() for tag in parsed if str(tag).strip()]
 
-    return [tag.strip() for tag in tags_text.replace("，", ",").split(",") if tag.strip()]
+    return [tag.strip() for tag in tags_text.replace("，", ",").replace("、", ",").split(",") if tag.strip()]

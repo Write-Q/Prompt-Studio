@@ -14,13 +14,14 @@ class TemplateNotFoundError(Exception):
 
 
 TEMPLATE_COLUMNS = """
-    id, title, category, tags, content, description, created_at, updated_at
+    id, seed_key, title, category, tags, content, description, created_at, updated_at
 """
 
 
 def _template_from_row(row: Row) -> PromptTemplateResponse:
     return PromptTemplateResponse(
         id=row["id"],
+        seed_key=row["seed_key"],
         title=row["title"],
         category=row["category"],
         tags=deserialize_tags(row["tags"]),

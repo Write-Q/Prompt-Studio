@@ -1,8 +1,11 @@
 import re
 
-from app.models.schemas import GenerateRequest, GenerateResponse, KnowledgeSnippetResponse
-from app.services.snippet_service import get_snippet_by_id
+from app.models.schemas import CONTEXT_CARD_LABELS, ContextCardResponse, GenerateRequest, GenerateResponse
+from app.services.context_card_service import get_context_card_by_id
 from app.services.template_service import get_template_by_id
+
+
+CARD_TYPE_ORDER = ["background", "rule", "format", "example", "checklist"]
 
 
 def extract_variables(template_content: str) -> list[str]:
@@ -20,27 +23,30 @@ def render_template(template_content: str, variables: dict[str, str]) -> str:
     return final_text
 
 
-def format_snippet(snippet: KnowledgeSnippetResponse) -> str:
-    return f"- {snippet.title}\n{snippet.content}"
+def format_context_card(card: ContextCardResponse) -> str:
+    return f"- {card.title}\n{card.content}"
+
+
+def format_context_card_sections(cards: list[ContextCardResponse]) -> list[str]:
+    sections: list[str] = []
+    for card_type in CARD_TYPE_ORDER:
+        blocks = [format_context_card(card) for card in cards if card.type == card_type]
+        if blocks:
+            sections.append(f"【{CONTEXT_CARD_LABELS[card_type]}】\n" + "\n\n".join(blocks))
+    return sections
 
 
 def build_prompt_by_rules(
     template_content: str,
     variables: dict[str, str],
-    knowledge_snippets: list[str] | None = None,
+    context_cards: list[ContextCardResponse] | None = None,
 ) -> str:
     prompt = render_template(template_content, variables)
-    if not knowledge_snippets:
-        return prompt
-
-    snippet_text = "\n\n".join(knowledge_snippets)
-    return f"{prompt}\n\n参考知识片段：\n{snippet_text}"
+    sections = format_context_card_sections(context_cards or [])
+    return prompt if not sections else f"{prompt}\n\n" + "\n\n".join(sections)
 
 
-def _find_missing_variables(
-    template_content: str,
-    variables: dict[str, str],
-) -> list[str]:
+def _find_missing_variables(template_content: str, variables: dict[str, str]) -> list[str]:
     return [
         name
         for name in extract_variables(template_content)
@@ -50,21 +56,14 @@ def _find_missing_variables(
 
 def generate_prompt(payload: GenerateRequest) -> GenerateResponse:
     template = get_template_by_id(payload.template_id)
-    snippets = [get_snippet_by_id(snippet_id) for snippet_id in payload.snippet_ids]
-    snippet_blocks = [format_snippet(snippet) for snippet in snippets]
-
-    final_prompt = build_prompt_by_rules(
-        template_content=template.content,
-        variables=payload.variables,
-        knowledge_snippets=snippet_blocks,
-    )
-    missing_variables = _find_missing_variables(template.content, payload.variables)
+    cards = [get_context_card_by_id(card_id) for card_id in payload.context_card_ids]
+    final_prompt = build_prompt_by_rules(template.content, payload.variables, cards)
 
     return GenerateResponse(
         template_id=payload.template_id,
         variables=payload.variables,
-        snippet_ids=payload.snippet_ids,
-        missing_variables=missing_variables,
+        context_card_ids=payload.context_card_ids,
+        missing_variables=_find_missing_variables(template.content, payload.variables),
         final_prompt=final_prompt,
         mode=payload.mode,
         history_id=None,

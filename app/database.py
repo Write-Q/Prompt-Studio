@@ -22,6 +22,45 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def _ensure_column(cursor: sqlite3.Cursor, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in cursor.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
+def _migrate_context_cards_without_source(cursor: sqlite3.Cursor) -> None:
+    columns = {row["name"] for row in cursor.execute("PRAGMA table_info(context_cards)")}
+    if "source" not in columns:
+        return
+
+    cursor.execute("DROP INDEX IF EXISTS idx_context_cards_seed_key")
+    cursor.execute(
+        """
+        CREATE TABLE context_cards_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            seed_key TEXT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            tags TEXT,
+            content TEXT NOT NULL,
+            created_at TEXT,
+            updated_at TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT INTO context_cards_new (
+            id, seed_key, type, title, tags, content, created_at, updated_at
+        )
+        SELECT id, seed_key, type, title, tags, content, created_at, updated_at
+        FROM context_cards
+        """
+    )
+    cursor.execute("DROP TABLE context_cards")
+    cursor.execute("ALTER TABLE context_cards_new RENAME TO context_cards")
+
+
 def init_db() -> None:
     with get_connection() as connection:
         cursor = connection.cursor()
@@ -39,29 +78,48 @@ def init_db() -> None:
             )
             """
         )
+        _ensure_column(cursor, "prompt_templates", "seed_key", "TEXT")
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS knowledge_snippets (
+            CREATE TABLE IF NOT EXISTS context_cards (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                seed_key TEXT,
+                type TEXT NOT NULL,
                 title TEXT NOT NULL,
                 tags TEXT,
                 content TEXT NOT NULL,
-                source TEXT,
                 created_at TEXT,
                 updated_at TEXT
             )
             """
         )
+        _ensure_column(cursor, "context_cards", "seed_key", "TEXT")
+        _migrate_context_cards_without_source(cursor)
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS generation_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 template_id INTEGER NOT NULL,
                 variables_json TEXT,
-                snippet_ids TEXT,
+                context_card_ids TEXT,
                 final_prompt TEXT NOT NULL,
                 created_at TEXT
             )
+            """
+        )
+        _ensure_column(cursor, "generation_history", "context_card_ids", "TEXT")
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_templates_seed_key
+            ON prompt_templates(seed_key)
+            WHERE seed_key IS NOT NULL
+            """
+        )
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_context_cards_seed_key
+            ON context_cards(seed_key)
+            WHERE seed_key IS NOT NULL
             """
         )
         connection.commit()

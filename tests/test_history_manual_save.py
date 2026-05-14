@@ -46,7 +46,7 @@ class ManualHistorySaveTest(unittest.TestCase):
         payload = GenerationHistoryCreate(
             template_id=self.template_id,
             variables={},
-            snippet_ids=[],
+            context_card_ids=[],
             final_prompt="Exact prompt the user chose to save.",
         )
 
@@ -62,13 +62,14 @@ class ManualHistorySaveTest(unittest.TestCase):
             GenerateRequest(
                 template_id=self.template_id,
                 variables={"topic": "manual saving"},
-                snippet_ids=[],
+                context_card_ids=[],
             )
         )
 
         self.assertEqual(result.final_prompt, "Write about manual saving")
         self.assertEqual(result.missing_variables, [])
         self.assertIsNone(result.history_id)
+        self.assertEqual(result.context_card_ids, [])
         self.assertEqual(list_history(limit=10), [])
 
     def test_history_save_route_accepts_plain_and_slash_paths(self):
