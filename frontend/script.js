@@ -1289,7 +1289,7 @@ function renderPokerTable(table) {
     return;
   }
 
-  const visibleLimit = 6;
+  const visibleLimit = 5;
   const visible = selected.slice(0, visibleLimit);
   const overflow = selected.slice(visibleLimit);
 

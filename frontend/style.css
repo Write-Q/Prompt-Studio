@@ -2006,12 +2006,13 @@ output {
 }
 
 .poker-pile__fan .poker-card.poker-card--detail {
-  width: 134px;
-  height: 178px;
-  margin-left: -67px;
-  transform: var(--fan-transform-hover, translate(0, -14px) rotate(0deg) scale(1.4));
+  width: 115px;
+  height: 154px;
+  margin-left: -58px;
+  transform: var(--fan-transform-hover, translate(0, -10px) rotate(0deg) scale(1.2));
   z-index: 999;
   box-shadow: 4px 5px 0 rgba(44, 33, 24, 0.28);
+  will-change: transform;
 }
 
 .poker-card__tags {
@@ -2116,10 +2117,15 @@ body.poker-is-dragging * {
 
 /* ===== 扑克牌 polish v2 · 收堆 + 5 堆联动曲线 ===== */
 .poker-pile {
-  transition:
-    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
-    width 260ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.poker-pile--dimmed,
+.poker-pile--expanded {
+  transition: transform 180ms cubic-bezier(0.4, 0, 0.2, 1),
+              width 180ms cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* ===== 扑克牌 polish v2 · reduced-motion 兜底 ===== */
