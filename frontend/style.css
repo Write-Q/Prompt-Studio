@@ -2001,7 +2001,6 @@ output {
   transition:
     transform 180ms ease-out,
     box-shadow 180ms ease-out,
-    z-index 0s 180ms,
     width 220ms ease-out,
     height 220ms ease-out;
 }
