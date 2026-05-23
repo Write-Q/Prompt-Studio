@@ -1582,3 +1582,180 @@ output {
     bottom: 16px;
   }
 }
+
+/* ===== 扑克牌交互 · 基础骨架 ===== */
+.poker-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.poker-table {
+  min-height: 110px;
+  padding: 14px;
+  border: 2px dashed var(--line-soft);
+  border-radius: 12px;
+  background: rgba(255, 250, 240, 0.6);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.poker-table:empty::before {
+  content: "点击下方卡堆把卡片打过来";
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  text-align: center;
+}
+
+.poker-hand {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 28px;
+  padding: 16px 8px 24px;
+  min-height: 160px;
+  position: relative;
+}
+
+.poker-pile {
+  position: relative;
+  width: 96px;
+  height: 128px;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  outline: none;
+  font: inherit;
+  transition: transform 180ms ease-out, width 220ms ease-out, opacity 180ms ease-out;
+}
+
+.poker-pile::before,
+.poker-pile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: #fffaf0;
+  border: 2px solid var(--line);
+  box-shadow: 2px 2px 0 rgba(44, 33, 24, 0.18);
+  z-index: 0;
+}
+
+.poker-pile::before {
+  transform: rotate(-2.4deg) translate(-4px, 2px);
+}
+
+.poker-pile::after {
+  transform: rotate(2.8deg) translate(4px, -1px);
+}
+
+.poker-pile:hover,
+.poker-pile:focus-visible {
+  transform: translateY(-6px);
+}
+
+.poker-pile:focus-visible {
+  outline: 2px solid var(--accent, #f4c66a);
+  outline-offset: 4px;
+}
+
+.poker-pile__count {
+  position: absolute;
+  top: -10px;
+  right: -12px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 800;
+  background: var(--ink, #2c2118);
+  color: #fff8ea;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  border: 2px solid #fff8ea;
+}
+
+.poker-card {
+  position: relative;
+  width: 96px;
+  height: 128px;
+  border-radius: 8px;
+  border: 2px solid var(--line, #2c2118);
+  background: #fff;
+  box-shadow: 2px 2px 0 rgba(44, 33, 24, 0.22);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px 8px;
+  gap: 6px;
+  text-align: center;
+  z-index: 1;
+}
+
+.poker-card__band {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--card-color, #ddd);
+  margin-top: 2px;
+}
+
+.poker-card__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  font-size: 10px;
+  padding: 1px 6px;
+  background: var(--card-color, #ddd);
+  color: var(--ink, #2c2118);
+  border-radius: 8px;
+  font-weight: 700;
+  border: 1.5px solid var(--ink, #2c2118);
+}
+
+.poker-card__title {
+  margin: auto 0;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.32;
+  color: var(--ink, #2c2118);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 类型配色 */
+.poker-card[data-card-type="background"] { --card-color: #f4c66a; }
+.poker-card[data-card-type="rule"]       { --card-color: #d96850; }
+.poker-card[data-card-type="format"]     { --card-color: #6b8aa8; }
+.poker-card[data-card-type="example"]    { --card-color: #7ab85c; }
+.poker-card[data-card-type="checklist"]  { --card-color: #8e6bb5; }
+
+.poker-pile[data-poker-pile="background"] .poker-card { background: #fff8e6; }
+.poker-pile[data-poker-pile="rule"]       .poker-card { background: #fdeae5; }
+.poker-pile[data-poker-pile="format"]     .poker-card { background: #e9eff5; }
+.poker-pile[data-poker-pile="example"]    .poker-card { background: #ecf5e6; }
+.poker-pile[data-poker-pile="checklist"]  .poker-card { background: #efe9f5; }
+
+/* 堆状态：部分挂载 → 细金边；全部挂载 → 粗金边 + ✓ */
+.poker-pile--has-selected::before,
+.poker-pile--has-selected::after {
+  box-shadow: 0 0 0 2px #f4c66a, 2px 2px 0 rgba(44, 33, 24, 0.18);
+}
+
+.poker-pile--all-selected::before,
+.poker-pile--all-selected::after {
+  box-shadow: 0 0 0 3px #f4c66a, 2px 2px 0 rgba(44, 33, 24, 0.18);
+}
+
+.poker-pile--all-selected .poker-pile__count::after {
+  content: " ✓";
+}

@@ -7,6 +7,8 @@ const state = {
   selectedContextCardIds: new Set(),
   editingTemplateId: null,
   editingContextCardId: null,
+  expandedPileType: null,
+  pilePageIndex: {},
 };
 
 const fallbackTemplates = [];
@@ -440,8 +442,22 @@ const contextCardTypeLabels = {
   checklist: "\u68c0\u67e5\u6e05\u5355",
 };
 
+const POKER_PILE_ORDER = ["background", "rule", "format", "example", "checklist"];
+
+const pokerTypeBadgeText = {
+  background: "\u80cc\u666f",
+  rule: "\u89c4\u5219",
+  format: "\u683c\u5f0f",
+  example: "\u793a\u4f8b",
+  checklist: "\u68c0\u67e5",
+};
+
 function contextCardTypeLabel(type) {
   return contextCardTypeLabels[type] || contextCardTypeLabels.background;
+}
+
+function pokerBadgeText(type) {
+  return pokerTypeBadgeText[type] || pokerTypeBadgeText.background;
 }
 
 const pageMeta = {
@@ -1034,27 +1050,108 @@ function renderVariables() {
 }
 
 function renderContextCardChoices() {
-  const contextCards = state.contextCards;
+  const zone = elements.contextCardChoices;
+  zone.classList.add("poker-zone");
+  zone.innerHTML = "";
 
-  if (!contextCards.length) {
-    elements.contextCardChoices.innerHTML = '<div class="empty-state">暂无可选上下文卡片。</div>';
-    elements.selectedContextCardCount.textContent = `已选 ${state.selectedContextCardIds.size} 个`;
+  const table = document.createElement("div");
+  table.className = "poker-table";
+  table.dataset.pokerTable = "";
+  table.setAttribute("aria-label", "已挂载卡片");
+  zone.appendChild(table);
+
+  const hand = document.createElement("div");
+  hand.className = "poker-hand";
+  hand.dataset.pokerHand = "";
+  hand.setAttribute("role", "group");
+  hand.setAttribute("aria-label", "知识卡片牌堆");
+  zone.appendChild(hand);
+
+  if (!state.contextCards.length) {
+    hand.innerHTML = '<div class="empty-state">暂无可选上下文卡片。</div>';
+    updateSelectedContextCardCount();
+    updateWorkSurface();
     return;
   }
 
-  elements.contextCardChoices.innerHTML = contextCards
-    .map((item) => `
-      <label class="choice-card has-hover-tip" data-tooltip="${escapeHtml(contextCardHoverText(item))}" tabindex="0">
-        <input type="checkbox" name="contextCard_choice" value="${item.id}" data-context-card-choice ${state.selectedContextCardIds.has(item.id) ? "checked" : ""}>
-        <span>
-          <strong>${escapeHtml(item.title)}</strong>
-          <small>${escapeHtml([contextCardTypeLabel(item.type), (item.tags || []).join(" / ")].filter(Boolean).join(" / "))}</small>
-        </span>
-      </label>
-    `)
-    .join("");
+  const grouped = groupContextCardsByType(state.contextCards);
+  POKER_PILE_ORDER.forEach((type) => {
+    const cards = grouped[type];
+    if (!cards.length) {
+      return;
+    }
+    hand.appendChild(renderPokerPile(type, cards));
+  });
+
+  renderPokerTable(table);
   updateSelectedContextCardCount();
   updateWorkSurface();
+}
+
+function groupContextCardsByType(cards) {
+  const buckets = {};
+  POKER_PILE_ORDER.forEach((type) => { buckets[type] = []; });
+  cards.forEach((card) => {
+    const bucket = buckets[card.type] ? card.type : "background";
+    buckets[bucket].push(card);
+  });
+  return buckets;
+}
+
+function renderPokerPile(type, cards) {
+  const pile = document.createElement("button");
+  pile.type = "button";
+  pile.className = "poker-pile";
+  pile.dataset.pokerPile = type;
+
+  const selectedCount = cards.filter((card) => state.selectedContextCardIds.has(card.id)).length;
+  if (selectedCount > 0 && selectedCount < cards.length) {
+    pile.classList.add("poker-pile--has-selected");
+  } else if (selectedCount > 0 && selectedCount === cards.length) {
+    pile.classList.add("poker-pile--all-selected");
+  }
+
+  const label = `${contextCardTypeLabel(type)} ${cards.length} 张，${selectedCount} 张已挂载`;
+  pile.setAttribute("aria-label", label);
+  pile.setAttribute("aria-expanded", "false");
+
+  pile.appendChild(renderPokerCard(cards[0]));
+
+  const count = document.createElement("span");
+  count.className = "poker-pile__count";
+  count.textContent = selectedCount > 0 ? `${selectedCount}/${cards.length}` : `${cards.length}`;
+  pile.appendChild(count);
+
+  return pile;
+}
+
+function renderPokerCard(card) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "poker-card has-hover-tip";
+  wrapper.dataset.cardId = String(card.id);
+  wrapper.dataset.cardType = card.type;
+  wrapper.dataset.tooltip = contextCardHoverText(card);
+
+  const band = document.createElement("div");
+  band.className = "poker-card__band";
+  wrapper.appendChild(band);
+
+  const badge = document.createElement("span");
+  badge.className = "poker-card__badge";
+  badge.textContent = pokerBadgeText(card.type);
+  wrapper.appendChild(badge);
+
+  const title = document.createElement("div");
+  title.className = "poker-card__title";
+  title.textContent = card.title;
+  wrapper.appendChild(title);
+
+  return wrapper;
+}
+
+function renderPokerTable(table) {
+  // Task 3 实现，此处先留空
+  table.innerHTML = "";
 }
 
 function renderTemplates() {
@@ -1696,26 +1793,6 @@ function bindEvents() {
     refreshCustomSelect(elements.quickTemplateSelect);
     renderVariables();
     renderTemplates();
-    hideOptimizeBox();
-    setWorkflowStep("compose");
-    updatePromptAssistant();
-  });
-
-  elements.contextCardChoices.addEventListener("change", (event) => {
-    const checkbox = event.target.closest("[data-context-card-choice]");
-    if (!checkbox) {
-      return;
-    }
-
-    const id = Number(checkbox.value);
-    if (checkbox.checked) {
-      state.selectedContextCardIds.add(id);
-    } else {
-      state.selectedContextCardIds.delete(id);
-    }
-
-    updateSelectedContextCardCount();
-    renderContextCards();
     hideOptimizeBox();
     setWorkflowStep("compose");
     updatePromptAssistant();
