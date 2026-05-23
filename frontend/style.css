@@ -2082,3 +2082,24 @@ body.poker-is-dragging * {
   cursor: grabbing !important;
   user-select: none;
 }
+
+/* ===== 扑克牌 polish v2 · 出牌区弧形 ===== */
+.poker-table {
+  position: relative;
+  min-height: 140px;
+  padding: 18px 14px 14px;
+}
+
+.poker-table > .poker-card {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  margin-left: -42px;
+  transform-origin: 50% 110%;
+}
+
+.poker-table > .poker-table__overflow {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}

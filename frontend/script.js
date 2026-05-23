@@ -1293,8 +1293,21 @@ function renderPokerTable(table) {
   const visible = selected.slice(0, visibleLimit);
   const overflow = selected.slice(visibleLimit);
 
-  visible.forEach((card) => {
-    table.appendChild(buildPlayedCard(card));
+  const total = visible.length;
+  const arc = 60;
+  const halfArc = arc / 2;
+  const radius = 180;
+
+  visible.forEach((card, index) => {
+    const ratio = total === 1 ? 0.5 : index / (total - 1);
+    const angle = -halfArc + ratio * arc;
+    const rad = (angle * Math.PI) / 180;
+    const offsetX = Math.sin(rad) * radius;
+    const offsetY = (1 - Math.cos(rad)) * radius * 0.18;
+    const cardEl = buildPlayedCard(card);
+    cardEl.style.transform =
+      `translate(${offsetX}px, ${offsetY}px) rotate(${angle * 0.6}deg)`;
+    table.appendChild(cardEl);
   });
 
   if (overflow.length) {
