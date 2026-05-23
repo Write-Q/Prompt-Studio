@@ -1903,3 +1903,53 @@ output {
     transform: translateY(0) scale(1);
   }
 }
+
+/* ===== 扑克牌交互 · 翻页 ===== */
+.poker-pile__pager {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.poker-pile__pager-button {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line, #2c2118);
+  background: #fffaf0;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--ink, #2c2118);
+}
+
+.poker-pile__pager-button:hover:not(:disabled),
+.poker-pile__pager-button:focus-visible {
+  background: var(--accent, #f4c66a);
+  outline: none;
+}
+
+.poker-pile__pager-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.poker-pile__pager-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(44, 33, 24, 0.25);
+}
+
+.poker-pile__pager-dot.is-active {
+  background: var(--ink, #2c2118);
+}

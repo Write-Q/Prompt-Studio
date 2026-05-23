@@ -1134,9 +1134,18 @@ function renderPokerPile(type, cards) {
   return pile;
 }
 
-function renderPokerFan(type, cards) {
+const POKER_PAGE_SIZE = 10;
+
+function renderPokerFan(type, allCards) {
   const fan = document.createElement("div");
   fan.className = "poker-pile__fan";
+
+  const totalPages = Math.max(1, Math.ceil(allCards.length / POKER_PAGE_SIZE));
+  const pageIndex = Math.min(state.pilePageIndex[type] || 0, totalPages - 1);
+  state.pilePageIndex[type] = pageIndex;
+
+  const start = pageIndex * POKER_PAGE_SIZE;
+  const cards = allCards.slice(start, start + POKER_PAGE_SIZE);
 
   const total = cards.length;
   const arc = 40;
@@ -1160,7 +1169,55 @@ function renderPokerFan(type, cards) {
     fan.appendChild(cardEl);
   });
 
+  if (totalPages > 1) {
+    fan.appendChild(renderPokerPager(type, pageIndex, totalPages));
+  }
+
   return fan;
+}
+
+function renderPokerPager(type, pageIndex, totalPages) {
+  const pager = document.createElement("div");
+  pager.className = "poker-pile__pager";
+  pager.dataset.pokerPager = type;
+
+  const prev = document.createElement("button");
+  prev.type = "button";
+  prev.className = "poker-pile__pager-button";
+  prev.textContent = "‹";
+  prev.dataset.pokerPagerDir = "-1";
+  prev.disabled = pageIndex === 0;
+  prev.setAttribute("aria-label", "上一页");
+  pager.appendChild(prev);
+
+  for (let i = 0; i < totalPages; i++) {
+    const dot = document.createElement("span");
+    dot.className = "poker-pile__pager-dot";
+    if (i === pageIndex) dot.classList.add("is-active");
+    pager.appendChild(dot);
+  }
+
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "poker-pile__pager-button";
+  next.textContent = "›";
+  next.dataset.pokerPagerDir = "1";
+  next.disabled = pageIndex === totalPages - 1;
+  next.setAttribute("aria-label", "下一页");
+  pager.appendChild(next);
+
+  return pager;
+}
+
+function pagePile(type, delta) {
+  const grouped = groupContextCardsByType(state.contextCards);
+  const cards = grouped[type] || [];
+  const totalPages = Math.max(1, Math.ceil(cards.length / POKER_PAGE_SIZE));
+  const current = state.pilePageIndex[type] || 0;
+  const next = Math.max(0, Math.min(totalPages - 1, current + delta));
+  if (next === current) return;
+  state.pilePageIndex[type] = next;
+  renderContextCardChoices();
 }
 
 function renderPokerCard(card) {
@@ -1919,6 +1976,17 @@ function bindEvents() {
     if (removeButton) {
       event.stopPropagation();
       recallCard(Number(removeButton.dataset.recallId));
+      return;
+    }
+
+    const pagerButton = event.target.closest(".poker-pile__pager-button");
+    if (pagerButton) {
+      event.stopPropagation();
+      const pager = pagerButton.closest("[data-poker-pager]");
+      const dir = Number(pagerButton.dataset.pokerPagerDir);
+      if (pager && dir) {
+        pagePile(pager.dataset.pokerPager, dir);
+      }
       return;
     }
 
