@@ -1958,3 +1958,35 @@ output {
   outline: 3px solid var(--accent, #f4c66a);
   outline-offset: 2px;
 }
+
+/* ===== 扑克牌交互 · 动效降级 ===== */
+@media (prefers-reduced-motion: reduce) {
+  .poker-pile,
+  .poker-pile::before,
+  .poker-pile::after,
+  .poker-card,
+  .poker-table__overflow > .poker-card,
+  .poker-table__remove {
+    transition: opacity 100ms linear !important;
+    animation: none !important;
+  }
+
+  .poker-pile__fan .poker-card {
+    animation: poker-fan-fade 100ms linear forwards !important;
+  }
+
+  .poker-pile:hover,
+  .poker-pile:focus-visible {
+    transform: none;
+  }
+
+  .poker-pile__fan .poker-card:hover,
+  .poker-pile__fan .poker-card:focus-visible {
+    transform: var(--fan-transform, none);
+  }
+}
+
+@keyframes poker-fan-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
