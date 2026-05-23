@@ -2103,3 +2103,14 @@ body.poker-is-dragging * {
   top: 14px;
   right: 14px;
 }
+
+/* ===== 扑克牌 polish v2 · 触屏 + 拖回退牌 ===== */
+.poker-pile__fan .poker-card,
+.poker-table .poker-card {
+  touch-action: none;
+}
+
+.poker-pile.poker-pile--drop-target::before,
+.poker-pile.poker-pile--drop-target::after {
+  box-shadow: 0 0 0 3px #f4c66a, 2px 2px 0 rgba(44, 33, 24, 0.18);
+}

@@ -2170,9 +2170,16 @@ function bindEvents() {
 
   elements.contextCardChoices.addEventListener("pointerdown", (event) => {
     if (event.button !== 0 && event.pointerType === "mouse") return;
+    if (event.target.closest(".poker-table__remove")) return;
     const fanCard = event.target.closest(".poker-pile__fan .poker-card");
-    if (!fanCard) return;
-    dragBegin(event, fanCard, "hand");
+    if (fanCard) {
+      dragBegin(event, fanCard, "hand");
+      return;
+    }
+    const tableCard = event.target.closest(".poker-table .poker-card");
+    if (tableCard) {
+      dragBegin(event, tableCard, "table");
+    }
   });
 
   document.addEventListener("pointermove", (event) => {
@@ -2183,9 +2190,11 @@ function bindEvents() {
       const dy = event.clientY - dragController.startY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const elapsed = performance.now() - dragController.startTime;
+      const isTouch = event.pointerType === "touch";
+      const minMs = isTouch ? DRAG_THRESHOLD_MS_TOUCH : DRAG_THRESHOLD_MS_MOUSE;
       const trigger =
-        dist >= DRAG_THRESHOLD_PX ||
-        (elapsed >= DRAG_THRESHOLD_MS && dist >= DRAG_MIN_MOVE_PX);
+        (!isTouch && dist >= DRAG_THRESHOLD_PX) ||
+        (elapsed >= minMs && dist >= DRAG_MIN_MOVE_PX);
       if (!trigger) return;
       dragActivate(event);
     }
@@ -2453,7 +2462,8 @@ function captureCardRect(cardId, zone = "any") {
 
 /* ===== 拖拽控制器 ===== */
 const DRAG_THRESHOLD_PX = 6;
-const DRAG_THRESHOLD_MS = 100;
+const DRAG_THRESHOLD_MS_MOUSE = 100;
+const DRAG_THRESHOLD_MS_TOUCH = 200;
 const DRAG_MIN_MOVE_PX = 2;
 
 const dragController = {
@@ -2478,8 +2488,11 @@ function dragReset() {
     dragController.sourceEl.classList.remove("poker-card--ghost");
   }
   document.body.classList.remove("poker-is-dragging");
-  const table = elements.contextCardChoices?.querySelector(".poker-table");
+  const root = elements.contextCardChoices;
+  const table = root?.querySelector(".poker-table");
   if (table) table.classList.remove("poker-table--drop-target");
+  root?.querySelectorAll(".poker-pile--drop-target")
+    .forEach((p) => p.classList.remove("poker-pile--drop-target"));
   dragController.pointerId = null;
   dragController.cardId = null;
   dragController.fromZone = null;
@@ -2519,8 +2532,14 @@ function dragActivate(event) {
   document.body.appendChild(clone);
   cardEl.classList.add("poker-card--ghost");
   document.body.classList.add("poker-is-dragging");
-  const table = elements.contextCardChoices.querySelector(".poker-table");
-  if (table) table.classList.add("poker-table--drop-target");
+  if (dragController.fromZone === "hand") {
+    const table = elements.contextCardChoices.querySelector(".poker-table");
+    if (table) table.classList.add("poker-table--drop-target");
+  } else {
+    elements.contextCardChoices
+      .querySelectorAll(".poker-pile")
+      .forEach((p) => p.classList.add("poker-pile--drop-target"));
+  }
   dragController.cloneEl = clone;
   dragController.active = true;
   state.draggingCardId = dragController.cardId;
@@ -2544,7 +2563,8 @@ function dragEnd(event) {
     dragReset();
     return;
   }
-  const table = elements.contextCardChoices.querySelector(".poker-table");
+  const root = elements.contextCardChoices;
+  const table = root.querySelector(".poker-table");
   const tableRect = table?.getBoundingClientRect();
   const inTable =
     tableRect &&
@@ -2556,6 +2576,20 @@ function dragEnd(event) {
     dragReset();
     playCard(cardId);
     return;
+  }
+
+  if (dragController.fromZone === "table") {
+    const piles = root.querySelectorAll(".poker-pile");
+    for (const pile of piles) {
+      const r = pile.getBoundingClientRect();
+      if (event.clientX >= r.left && event.clientX <= r.right &&
+          event.clientY >= r.top && event.clientY <= r.bottom) {
+        const cardId = dragController.cardId;
+        dragReset();
+        recallCard(cardId);
+        return;
+      }
+    }
   }
 
   dragReturnHome();
