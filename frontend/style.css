@@ -2114,3 +2114,36 @@ body.poker-is-dragging * {
 .poker-pile.poker-pile--drop-target::after {
   box-shadow: 0 0 0 3px #f4c66a, 2px 2px 0 rgba(44, 33, 24, 0.18);
 }
+
+/* ===== 扑克牌 polish v2 · 收堆 + 5 堆联动曲线 ===== */
+.poker-pile {
+  transition:
+    transform 220ms cubic-bezier(0.4, 0, 0.2, 1),
+    width 260ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 220ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== 扑克牌 polish v2 · reduced-motion 兜底 ===== */
+@media (prefers-reduced-motion: reduce) {
+  .poker-card[data-flip-active="true"] {
+    transition: opacity 100ms linear !important;
+    animation: none !important;
+  }
+
+  .poker-pile__fan .poker-card.poker-card--detail {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .poker-drag-clone {
+    transition: none !important;
+  }
+
+  .poker-drag-clone.is-returning {
+    transition: opacity 100ms linear !important;
+  }
+
+  .poker-pile {
+    transition: opacity 100ms linear !important;
+  }
+}

@@ -1151,14 +1151,14 @@ function renderPokerFan(type, allCards) {
   const cards = allCards.slice(start, start + POKER_PAGE_SIZE);
 
   const total = cards.length;
-  const arc = 40;
-  const halfArc = arc / 2;
+  const step = Math.min(12, total <= 1 ? 0 : 84 / (total - 1));
+  const startAngle = -((total - 1) / 2) * step;
 
   cards.forEach((card, index) => {
-    const ratio = total === 1 ? 0.5 : index / (total - 1);
-    const angle = -halfArc + ratio * arc;
-    const offsetX = (ratio - 0.5) * 200;
-    const offsetY = Math.abs(ratio - 0.5) * 18;
+    const angle = startAngle + index * step;
+    const rad = (angle * Math.PI) / 180;
+    const offsetX = Math.sin(rad) * 150;
+    const offsetY = (1 - Math.cos(rad)) * 150;
 
     const cardEl = renderPokerCard(card);
     cardEl.setAttribute("role", "option");
@@ -1336,6 +1336,7 @@ function buildPlayedCard(card) {
 }
 
 function expandPile(type) {
+  if (pokerCollapsing) return;
   if (state.expandedPileType === type) {
     collapsePile();
     return;
@@ -1344,12 +1345,50 @@ function expandPile(type) {
   renderContextCardChoices();
 }
 
+let pokerCollapsing = false;
+
 function collapsePile() {
   if (state.expandedPileType === null) {
     return;
   }
-  state.expandedPileType = null;
-  renderContextCardChoices();
+  if (pokerCollapsing) {
+    return;
+  }
+  const root = elements.contextCardChoices;
+  const fan = root?.querySelector(".poker-pile--expanded .poker-pile__fan");
+  const pile = root?.querySelector(".poker-pile--expanded");
+  if (!fan || !pile) {
+    state.expandedPileType = null;
+    renderContextCardChoices();
+    return;
+  }
+
+  const fanCards = [...fan.querySelectorAll(".poker-card")];
+  const pileRect = pile.getBoundingClientRect();
+  const stagger = 20;
+  pokerCollapsing = true;
+
+  fanCards.forEach((cardEl, index) => {
+    const rect = cardEl.getBoundingClientRect();
+    const dx = pileRect.left + pileRect.width / 2 - (rect.left + rect.width / 2);
+    const dy = pileRect.top + pileRect.height / 2 - (rect.top + rect.height / 2);
+    cardEl.animate(
+      { transform: `translate(${dx}px, ${dy}px) scale(0.6) rotate(0deg)`, opacity: 0 },
+      {
+        duration: 260,
+        delay: index * stagger,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        fill: "forwards",
+      },
+    );
+  });
+
+  const totalMs = 260 + Math.max(0, fanCards.length - 1) * stagger;
+  setTimeout(() => {
+    pokerCollapsing = false;
+    state.expandedPileType = null;
+    renderContextCardChoices();
+  }, totalMs);
 }
 
 function enterCardDetail(cardId, cardEl) {

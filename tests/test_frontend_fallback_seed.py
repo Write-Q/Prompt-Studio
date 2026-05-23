@@ -63,7 +63,7 @@ class FrontendFallbackSeedTest(unittest.TestCase):
         self.assertIn('document.addEventListener("pointerover"', source)
         self.assertIn('document.addEventListener("pointermove"', source)
         self.assertIn('document.addEventListener("pointerout"', source)
-        self.assertIn('"poker-card has-hover-tip"', source)
+        self.assertIn('"poker-card--played", "has-hover-tip"', source)
         self.assertNotIn('class="resource-card has-hover-tip', source)
         self.assertNotIn('data-tooltip="${escapeHtml(contextCardHoverText(item))}" tabindex="0">\n        <div class="resource-row"', source)
         self.assertIn('wrapper.dataset.tooltip = contextCardHoverText(card)', source)
