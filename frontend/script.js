@@ -9,6 +9,9 @@ const state = {
   editingContextCardId: null,
   expandedPileType: null,
   pilePageIndex: {},
+  hoveredCardId: null,
+  draggingCardId: null,
+  draggingFromZone: null,
 };
 
 const fallbackTemplates = [];
@@ -1170,6 +1173,10 @@ function renderPokerFan(type, allCards) {
     if (state.selectedContextCardIds.has(card.id)) {
       cardEl.classList.add("poker-card--selected");
     }
+    if (state.hoveredCardId === card.id && state.draggingCardId === null) {
+      cardEl.classList.add("poker-card--detail");
+      renderPokerCardInternals(cardEl, card, true);
+    }
     fan.appendChild(cardEl);
   });
 
@@ -1224,12 +1231,8 @@ function pagePile(type, delta) {
   renderContextCardChoices();
 }
 
-function renderPokerCard(card) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "poker-card has-hover-tip";
-  wrapper.dataset.cardId = String(card.id);
-  wrapper.dataset.cardType = card.type;
-  wrapper.dataset.tooltip = contextCardHoverText(card);
+function renderPokerCardInternals(wrapper, card, isDetail) {
+  wrapper.innerHTML = "";
 
   const band = document.createElement("div");
   band.className = "poker-card__band";
@@ -1245,6 +1248,34 @@ function renderPokerCard(card) {
   title.textContent = card.title;
   wrapper.appendChild(title);
 
+  if (!isDetail) return;
+
+  const tags = Array.isArray(card.tags) ? card.tags.slice(0, 3) : [];
+  if (tags.length) {
+    const tagBox = document.createElement("div");
+    tagBox.className = "poker-card__tags";
+    tags.forEach((tag) => {
+      const pill = document.createElement("span");
+      pill.className = "poker-card__tag";
+      pill.textContent = tag;
+      tagBox.appendChild(pill);
+    });
+    wrapper.appendChild(tagBox);
+  }
+
+  const body = document.createElement("div");
+  body.className = "poker-card__body";
+  const text = (card.content || "").trim();
+  body.textContent = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  wrapper.appendChild(body);
+}
+
+function renderPokerCard(card) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "poker-card";
+  wrapper.dataset.cardId = String(card.id);
+  wrapper.dataset.cardType = card.type;
+  renderPokerCardInternals(wrapper, card, false);
   return wrapper;
 }
 
@@ -1277,7 +1308,8 @@ function renderPokerTable(table) {
 
 function buildPlayedCard(card) {
   const wrapper = renderPokerCard(card);
-  wrapper.classList.add("poker-card--played");
+  wrapper.classList.add("poker-card--played", "has-hover-tip");
+  wrapper.dataset.tooltip = contextCardHoverText(card);
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -1305,6 +1337,24 @@ function collapsePile() {
   }
   state.expandedPileType = null;
   renderContextCardChoices();
+}
+
+function enterCardDetail(cardId, cardEl) {
+  const card = state.contextCards.find((c) => c.id === cardId);
+  if (!card || !cardEl) return;
+  state.hoveredCardId = cardId;
+  cardEl.classList.add("poker-card--detail");
+  renderPokerCardInternals(cardEl, card, true);
+}
+
+function leaveCardDetail(cardId, cardEl) {
+  const card = state.contextCards.find((c) => c.id === cardId);
+  if (!card || !cardEl) return;
+  if (state.hoveredCardId === cardId) {
+    state.hoveredCardId = null;
+  }
+  cardEl.classList.remove("poker-card--detail");
+  renderPokerCardInternals(cardEl, card, false);
 }
 
 function playCard(cardId) {
@@ -2070,6 +2120,38 @@ function bindEvents() {
     if (event.target.closest(".poker-pile")) return;
     if (event.target.closest(".poker-table")) return;
     collapsePile();
+  });
+
+  elements.contextCardChoices.addEventListener("mouseover", (event) => {
+    if (state.draggingCardId !== null) return;
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    const id = Number(cardEl.dataset.cardId);
+    if (state.hoveredCardId === id) return;
+    enterCardDetail(id, cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("mouseout", (event) => {
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    const related = event.relatedTarget;
+    if (related && cardEl.contains(related)) return;
+    const id = Number(cardEl.dataset.cardId);
+    if (state.hoveredCardId !== id) return;
+    leaveCardDetail(id, cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("focusin", (event) => {
+    if (state.draggingCardId !== null) return;
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    enterCardDetail(Number(cardEl.dataset.cardId), cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("focusout", (event) => {
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    leaveCardDetail(Number(cardEl.dataset.cardId), cardEl);
   });
 
   elements.previewPromptButton.addEventListener("click", previewPrompt);
