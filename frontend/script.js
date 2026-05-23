@@ -2060,6 +2060,7 @@ function bindEvents() {
     const fanCard = event.target.closest(".poker-pile__fan .poker-card");
     if (fanCard) {
       event.stopPropagation();
+      if (dragController.active) return;
       playCard(Number(fanCard.dataset.cardId));
       return;
     }
@@ -2152,6 +2153,46 @@ function bindEvents() {
     const cardEl = event.target.closest(".poker-pile__fan .poker-card");
     if (!cardEl) return;
     leaveCardDetail(Number(cardEl.dataset.cardId), cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (!fanCard) return;
+    dragBegin(event, fanCard, "hand");
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    if (!dragController.active) {
+      const dx = event.clientX - dragController.startX;
+      const dy = event.clientY - dragController.startY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const elapsed = performance.now() - dragController.startTime;
+      const trigger =
+        dist >= DRAG_THRESHOLD_PX ||
+        (elapsed >= DRAG_THRESHOLD_MS && dist >= DRAG_MIN_MOVE_PX);
+      if (!trigger) return;
+      dragActivate(event);
+    }
+    dragMove(event);
+  });
+
+  document.addEventListener("pointerup", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    dragEnd(event);
+  });
+
+  document.addEventListener("pointercancel", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    dragReturnHome();
+  });
+
+  window.addEventListener("blur", () => {
+    if (dragController.pointerId !== null) dragReturnHome();
   });
 
   elements.previewPromptButton.addEventListener("click", previewPrompt);
@@ -2395,4 +2436,133 @@ function captureCardRect(cardId, zone = "any") {
   }
   const el = root?.querySelector(selector);
   return el ? el.getBoundingClientRect() : null;
+}
+
+/* ===== 拖拽控制器 ===== */
+const DRAG_THRESHOLD_PX = 6;
+const DRAG_THRESHOLD_MS = 100;
+const DRAG_MIN_MOVE_PX = 2;
+
+const dragController = {
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  startTime: 0,
+  cardId: null,
+  fromZone: null,
+  sourceEl: null,
+  cloneEl: null,
+  cloneOffsetX: 0,
+  cloneOffsetY: 0,
+  active: false,
+};
+
+function dragReset() {
+  if (dragController.cloneEl && dragController.cloneEl.parentNode) {
+    dragController.cloneEl.parentNode.removeChild(dragController.cloneEl);
+  }
+  if (dragController.sourceEl) {
+    dragController.sourceEl.classList.remove("poker-card--ghost");
+  }
+  document.body.classList.remove("poker-is-dragging");
+  const table = elements.contextCardChoices?.querySelector(".poker-table");
+  if (table) table.classList.remove("poker-table--drop-target");
+  dragController.pointerId = null;
+  dragController.cardId = null;
+  dragController.fromZone = null;
+  dragController.sourceEl = null;
+  dragController.cloneEl = null;
+  dragController.active = false;
+  state.draggingCardId = null;
+  state.draggingFromZone = null;
+}
+
+function dragBegin(event, cardEl, fromZone) {
+  const rect = cardEl.getBoundingClientRect();
+  dragController.pointerId = event.pointerId;
+  dragController.startX = event.clientX;
+  dragController.startY = event.clientY;
+  dragController.startTime = performance.now();
+  dragController.cardId = Number(cardEl.dataset.cardId);
+  dragController.fromZone = fromZone;
+  dragController.sourceEl = cardEl;
+  dragController.cloneOffsetX = event.clientX - rect.left;
+  dragController.cloneOffsetY = event.clientY - rect.top;
+  dragController.active = false;
+}
+
+function dragActivate(event) {
+  const cardEl = dragController.sourceEl;
+  if (!cardEl) return;
+  const rect = cardEl.getBoundingClientRect();
+  const clone = cardEl.cloneNode(true);
+  clone.classList.add("poker-drag-clone");
+  clone.classList.remove("poker-card--detail", "poker-card--ghost");
+  clone.style.width = `${rect.width}px`;
+  clone.style.height = `${rect.height}px`;
+  clone.style.left = "0px";
+  clone.style.top = "0px";
+  clone.style.transform = `translate(${event.clientX - dragController.cloneOffsetX}px, ${event.clientY - dragController.cloneOffsetY}px) rotate(0deg) scale(1)`;
+  document.body.appendChild(clone);
+  cardEl.classList.add("poker-card--ghost");
+  document.body.classList.add("poker-is-dragging");
+  const table = elements.contextCardChoices.querySelector(".poker-table");
+  if (table) table.classList.add("poker-table--drop-target");
+  dragController.cloneEl = clone;
+  dragController.active = true;
+  state.draggingCardId = dragController.cardId;
+  state.draggingFromZone = dragController.fromZone;
+  if (state.hoveredCardId !== null) {
+    state.hoveredCardId = null;
+    cardEl.classList.remove("poker-card--detail");
+    const card = state.contextCards.find((c) => c.id === dragController.cardId);
+    if (card) renderPokerCardInternals(cardEl, card, false);
+  }
+}
+
+function dragMove(event) {
+  if (!dragController.cloneEl) return;
+  dragController.cloneEl.style.transform =
+    `translate(${event.clientX - dragController.cloneOffsetX}px, ${event.clientY - dragController.cloneOffsetY}px) rotate(0deg) scale(1)`;
+}
+
+function dragEnd(event) {
+  if (!dragController.active) {
+    dragReset();
+    return;
+  }
+  const table = elements.contextCardChoices.querySelector(".poker-table");
+  const tableRect = table?.getBoundingClientRect();
+  const inTable =
+    tableRect &&
+    event.clientX >= tableRect.left && event.clientX <= tableRect.right &&
+    event.clientY >= tableRect.top && event.clientY <= tableRect.bottom;
+
+  if (dragController.fromZone === "hand" && inTable) {
+    const cardId = dragController.cardId;
+    dragReset();
+    playCard(cardId);
+    return;
+  }
+
+  dragReturnHome();
+}
+
+function dragReturnHome() {
+  const clone = dragController.cloneEl;
+  const source = dragController.sourceEl;
+  if (!clone) {
+    dragReset();
+    return;
+  }
+  const targetRect = source?.getBoundingClientRect();
+  if (targetRect) {
+    clone.classList.add("is-returning");
+    clone.style.transform = `translate(${targetRect.left}px, ${targetRect.top}px) rotate(0deg) scale(1)`;
+  } else {
+    clone.classList.add("is-returning");
+  }
+  setTimeout(() => {
+    dragReset();
+  }, 320);
 }
