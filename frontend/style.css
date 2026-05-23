@@ -1759,3 +1759,77 @@ output {
 .poker-pile--all-selected .poker-pile__count::after {
   content: " ✓";
 }
+
+/* ===== 扑克牌交互 · 展开扇形 ===== */
+.poker-pile--dimmed {
+  width: 56px;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.poker-pile--expanded {
+  width: 360px;
+  height: 160px;
+  cursor: default;
+  transform: none;
+}
+
+.poker-pile--expanded:hover,
+.poker-pile--expanded:focus-visible {
+  transform: none;
+}
+
+.poker-pile--expanded::before,
+.poker-pile--expanded::after {
+  display: none;
+}
+
+.poker-pile--expanded > .poker-pile__count {
+  top: -10px;
+  right: 8px;
+}
+
+.poker-pile__fan {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.poker-pile__fan .poker-card {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  margin-left: -48px;
+  transform-origin: 50% 110%;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out, z-index 0s 180ms;
+  opacity: 0;
+  animation: poker-fan-in 280ms ease-out forwards;
+}
+
+.poker-pile__fan .poker-card:hover,
+.poker-pile__fan .poker-card:focus-visible {
+  transform: var(--fan-transform-hover, translate(0, -12px) rotate(0deg));
+  z-index: 10;
+  box-shadow: 4px 5px 0 rgba(44, 33, 24, 0.28);
+  outline: none;
+}
+
+@keyframes poker-fan-in {
+  from {
+    opacity: 0;
+    transform: translate(0, 30px) rotate(0deg) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: var(--fan-transform, translate(0, 0) rotate(0deg));
+  }
+}
+
+.poker-card--selected {
+  box-shadow: 0 0 0 3px #f4c66a, 4px 5px 0 rgba(44, 33, 24, 0.28);
+}

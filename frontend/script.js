@@ -1099,9 +1099,14 @@ function groupContextCardsByType(cards) {
 }
 
 function renderPokerPile(type, cards) {
+  const isExpanded = state.expandedPileType === type;
+  const isDimmed = state.expandedPileType !== null && !isExpanded;
+
   const pile = document.createElement("button");
   pile.type = "button";
   pile.className = "poker-pile";
+  if (isExpanded) pile.classList.add("poker-pile--expanded");
+  if (isDimmed) pile.classList.add("poker-pile--dimmed");
   pile.dataset.pokerPile = type;
 
   const selectedCount = cards.filter((card) => state.selectedContextCardIds.has(card.id)).length;
@@ -1111,11 +1116,15 @@ function renderPokerPile(type, cards) {
     pile.classList.add("poker-pile--all-selected");
   }
 
-  const label = `${contextCardTypeLabel(type)} ${cards.length} 张，${selectedCount} 张已挂载`;
-  pile.setAttribute("aria-label", label);
-  pile.setAttribute("aria-expanded", "false");
+  pile.setAttribute("aria-label",
+    `${contextCardTypeLabel(type)} ${cards.length} 张，${selectedCount} 张已挂载`);
+  pile.setAttribute("aria-expanded", isExpanded ? "true" : "false");
 
-  pile.appendChild(renderPokerCard(cards[0]));
+  if (!isExpanded) {
+    pile.appendChild(renderPokerCard(cards[0]));
+  } else {
+    pile.appendChild(renderPokerFan(type, cards));
+  }
 
   const count = document.createElement("span");
   count.className = "poker-pile__count";
@@ -1123,6 +1132,35 @@ function renderPokerPile(type, cards) {
   pile.appendChild(count);
 
   return pile;
+}
+
+function renderPokerFan(type, cards) {
+  const fan = document.createElement("div");
+  fan.className = "poker-pile__fan";
+
+  const total = cards.length;
+  const arc = 40;
+  const halfArc = arc / 2;
+
+  cards.forEach((card, index) => {
+    const ratio = total === 1 ? 0.5 : index / (total - 1);
+    const angle = -halfArc + ratio * arc;
+    const offsetX = (ratio - 0.5) * 200;
+    const offsetY = Math.abs(ratio - 0.5) * 18;
+
+    const cardEl = renderPokerCard(card);
+    cardEl.style.setProperty("--fan-transform",
+      `translate(${offsetX}px, ${-offsetY}px) rotate(${angle}deg)`);
+    cardEl.style.setProperty("--fan-transform-hover",
+      `translate(${offsetX}px, ${-offsetY - 14}px) rotate(${angle}deg) scale(1.06)`);
+    cardEl.style.animationDelay = `${index * 30}ms`;
+    if (state.selectedContextCardIds.has(card.id)) {
+      cardEl.classList.add("poker-card--selected");
+    }
+    fan.appendChild(cardEl);
+  });
+
+  return fan;
 }
 
 function renderPokerCard(card) {
@@ -1152,6 +1190,23 @@ function renderPokerCard(card) {
 function renderPokerTable(table) {
   // Task 3 实现，此处先留空
   table.innerHTML = "";
+}
+
+function expandPile(type) {
+  if (state.expandedPileType === type) {
+    collapsePile();
+    return;
+  }
+  state.expandedPileType = type;
+  renderContextCardChoices();
+}
+
+function collapsePile() {
+  if (state.expandedPileType === null) {
+    return;
+  }
+  state.expandedPileType = null;
+  renderContextCardChoices();
 }
 
 function renderTemplates() {
@@ -1798,6 +1853,24 @@ function bindEvents() {
     updatePromptAssistant();
   });
 
+  elements.contextCardChoices.addEventListener("click", (event) => {
+    if (event.target.closest(".poker-pile__fan")) {
+      return;
+    }
+    const pile = event.target.closest(".poker-pile");
+    if (!pile) {
+      return;
+    }
+    expandPile(pile.dataset.pokerPile);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (state.expandedPileType === null) return;
+    if (event.target.closest(".poker-pile")) return;
+    if (event.target.closest(".poker-table")) return;
+    collapsePile();
+  });
+
   elements.previewPromptButton.addEventListener("click", previewPrompt);
   elements.savePromptButton.addEventListener("click", saveCurrentPrompt);
   elements.optimizePromptButton.addEventListener("click", optimizePrompt);
@@ -1983,6 +2056,7 @@ function bindEvents() {
       document.body.classList.remove("sidebar-open");
       closeCustomSelects();
       hideHoverTooltip();
+      collapsePile();
     }
   });
 }
