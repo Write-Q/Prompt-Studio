@@ -1311,24 +1311,37 @@ function playCard(cardId) {
   if (state.selectedContextCardIds.has(cardId)) {
     return;
   }
+  const fromRect = captureCardRect(cardId, "hand");
   state.selectedContextCardIds.add(cardId);
   renderContextCardChoices();
   renderContextCards();
   hideOptimizeBox();
   setWorkflowStep("compose");
   updatePromptAssistant();
+  if (fromRect) {
+    const toEl = elements.contextCardChoices.querySelector(
+      `.poker-table .poker-card[data-card-id="${cardId}"]`);
+    if (toEl) flipAnimate(fromRect, toEl);
+  }
 }
 
 function recallCard(cardId) {
   if (!state.selectedContextCardIds.has(cardId)) {
     return;
   }
+  const fromRect = captureCardRect(cardId, "table");
+  const card = state.contextCards.find((c) => c.id === cardId);
   state.selectedContextCardIds.delete(cardId);
   renderContextCardChoices();
   renderContextCards();
   hideOptimizeBox();
   setWorkflowStep("compose");
   updatePromptAssistant();
+  if (fromRect && card) {
+    const pileEl = elements.contextCardChoices.querySelector(
+      `.poker-pile[data-poker-pile="${card.type}"]`);
+    if (pileEl) flipAnimate(fromRect, pileEl);
+  }
 }
 
 function renderTemplates() {
@@ -2251,3 +2264,53 @@ function bindEvents() {
 
 bindEvents();
 loadData();
+
+/* ===== FLIP 飞行框架 ===== */
+const FLIP_DEFAULTS = {
+  duration: 320,
+  easing: "cubic-bezier(0.34, 1.2, 0.5, 1)",
+};
+
+function flipAnimate(fromRect, toEl, options = {}) {
+  if (!toEl || !fromRect) return null;
+  const opts = { ...FLIP_DEFAULTS, ...options };
+  const toRect = toEl.getBoundingClientRect();
+  const dx = fromRect.left - toRect.left;
+  const dy = fromRect.top - toRect.top;
+  const sx = fromRect.width === 0 ? 1 : fromRect.width / toRect.width;
+  const sy = fromRect.height === 0 ? 1 : fromRect.height / toRect.height;
+
+  if (toEl._flipAnim) {
+    toEl._flipAnim.cancel();
+  }
+
+  const anim = toEl.animate(
+    [
+      { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, zIndex: 200 },
+      { transform: "translate(0, 0) scale(1, 1)", zIndex: 200 },
+    ],
+    { duration: opts.duration, easing: opts.easing, fill: "both" },
+  );
+  toEl._flipAnim = anim;
+  anim.addEventListener("finish", () => {
+    if (toEl._flipAnim === anim) {
+      toEl._flipAnim = null;
+    }
+    if (typeof opts.onFinish === "function") opts.onFinish();
+  });
+  return anim;
+}
+
+function captureCardRect(cardId, zone = "any") {
+  const root = elements.contextCardChoices;
+  let selector;
+  if (zone === "hand") {
+    selector = `.poker-pile__fan .poker-card[data-card-id="${cardId}"]`;
+  } else if (zone === "table") {
+    selector = `.poker-table .poker-card[data-card-id="${cardId}"]`;
+  } else {
+    selector = `.poker-card[data-card-id="${cardId}"]`;
+  }
+  const el = root?.querySelector(selector);
+  return el ? el.getBoundingClientRect() : null;
+}

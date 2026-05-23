@@ -1990,3 +1990,8 @@ output {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ===== 扑克牌 polish v2 · FLIP 飞行 ===== */
+.poker-card[data-flip-active="true"] {
+  z-index: 200;
+}
