@@ -1188,8 +1188,45 @@ function renderPokerCard(card) {
 }
 
 function renderPokerTable(table) {
-  // Task 3 实现，此处先留空
   table.innerHTML = "";
+
+  const selected = state.contextCards.filter(
+    (card) => state.selectedContextCardIds.has(card.id));
+
+  if (!selected.length) {
+    return;
+  }
+
+  const visibleLimit = 6;
+  const visible = selected.slice(0, visibleLimit);
+  const overflow = selected.slice(visibleLimit);
+
+  visible.forEach((card) => {
+    table.appendChild(buildPlayedCard(card));
+  });
+
+  if (overflow.length) {
+    const stack = document.createElement("div");
+    stack.className = "poker-table__overflow";
+    stack.setAttribute("aria-label", `还有 ${overflow.length} 张已挂载卡片`);
+    overflow.forEach((card) => stack.appendChild(buildPlayedCard(card)));
+    table.appendChild(stack);
+  }
+}
+
+function buildPlayedCard(card) {
+  const wrapper = renderPokerCard(card);
+  wrapper.classList.add("poker-card--played");
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "poker-table__remove";
+  remove.dataset.recallId = String(card.id);
+  remove.setAttribute("aria-label", `退回 ${contextCardTypeLabel(card.type)}：${card.title}`);
+  remove.textContent = "×";
+  wrapper.appendChild(remove);
+
+  return wrapper;
 }
 
 function expandPile(type) {
@@ -1207,6 +1244,30 @@ function collapsePile() {
   }
   state.expandedPileType = null;
   renderContextCardChoices();
+}
+
+function playCard(cardId) {
+  if (state.selectedContextCardIds.has(cardId)) {
+    return;
+  }
+  state.selectedContextCardIds.add(cardId);
+  renderContextCardChoices();
+  renderContextCards();
+  hideOptimizeBox();
+  setWorkflowStep("compose");
+  updatePromptAssistant();
+}
+
+function recallCard(cardId) {
+  if (!state.selectedContextCardIds.has(cardId)) {
+    return;
+  }
+  state.selectedContextCardIds.delete(cardId);
+  renderContextCardChoices();
+  renderContextCards();
+  hideOptimizeBox();
+  setWorkflowStep("compose");
+  updatePromptAssistant();
 }
 
 function renderTemplates() {
@@ -1854,14 +1915,28 @@ function bindEvents() {
   });
 
   elements.contextCardChoices.addEventListener("click", (event) => {
+    const removeButton = event.target.closest(".poker-table__remove");
+    if (removeButton) {
+      event.stopPropagation();
+      recallCard(Number(removeButton.dataset.recallId));
+      return;
+    }
+
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (fanCard) {
+      event.stopPropagation();
+      playCard(Number(fanCard.dataset.cardId));
+      return;
+    }
+
     if (event.target.closest(".poker-pile__fan")) {
       return;
     }
+
     const pile = event.target.closest(".poker-pile");
-    if (!pile) {
-      return;
+    if (pile) {
+      expandPile(pile.dataset.pokerPile);
     }
-    expandPile(pile.dataset.pokerPile);
   });
 
   document.addEventListener("click", (event) => {
