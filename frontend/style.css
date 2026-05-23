@@ -1953,3 +1953,8 @@ output {
 .poker-pile__pager-dot.is-active {
   background: var(--ink, #2c2118);
 }
+
+.poker-pile__fan .poker-card:focus-visible {
+  outline: 3px solid var(--accent, #f4c66a);
+  outline-offset: 2px;
+}

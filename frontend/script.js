@@ -1158,6 +1158,10 @@ function renderPokerFan(type, allCards) {
     const offsetY = Math.abs(ratio - 0.5) * 18;
 
     const cardEl = renderPokerCard(card);
+    cardEl.setAttribute("role", "option");
+    cardEl.setAttribute("tabindex", "0");
+    cardEl.setAttribute("aria-selected",
+      state.selectedContextCardIds.has(card.id) ? "true" : "false");
     cardEl.style.setProperty("--fan-transform",
       `translate(${offsetX}px, ${-offsetY}px) rotate(${angle}deg)`);
     cardEl.style.setProperty("--fan-transform-hover",
@@ -2004,6 +2008,47 @@ function bindEvents() {
     const pile = event.target.closest(".poker-pile");
     if (pile) {
       expandPile(pile.dataset.pokerPile);
+    }
+  });
+
+  elements.contextCardChoices.addEventListener("keydown", (event) => {
+    const pile = event.target.closest(".poker-pile");
+    if (!pile) return;
+    const type = pile.dataset.pokerPile;
+
+    if (event.target.matches(".poker-pile") && !pile.classList.contains("poker-pile--expanded")) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const piles = [...elements.contextCardChoices.querySelectorAll(".poker-pile")];
+        const idx = piles.indexOf(pile);
+        const nextIdx = (idx + (event.key === "ArrowRight" ? 1 : -1) + piles.length) % piles.length;
+        piles[nextIdx].focus();
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        expandPile(type);
+        requestAnimationFrame(() => {
+          const firstCard = elements.contextCardChoices.querySelector(
+            `.poker-pile[data-poker-pile="${type}"] .poker-pile__fan .poker-card`);
+          firstCard?.focus();
+        });
+      }
+      return;
+    }
+
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (fanCard) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        playCard(Number(fanCard.dataset.cardId));
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const cards = [...pile.querySelectorAll(".poker-pile__fan .poker-card")];
+        const idx = cards.indexOf(fanCard);
+        const nextIdx = (idx + (event.key === "ArrowRight" ? 1 : -1) + cards.length) % cards.length;
+        cards[nextIdx].focus();
+      }
     }
   });
 
