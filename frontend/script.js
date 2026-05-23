@@ -2194,6 +2194,23 @@ function bindEvents() {
     leaveCardDetail(id, cardEl);
   });
 
+  elements.contextCardChoices.addEventListener("mousemove", (event) => {
+    if (state.draggingCardId !== null) return;
+    if (state.hoveredCardId === null) return;
+    const stack = document.elementsFromPoint(event.clientX, event.clientY);
+    for (const el of stack) {
+      const card = el.closest(".poker-pile__fan .poker-card");
+      if (!card) continue;
+      const id = Number(card.dataset.cardId);
+      if (id === state.hoveredCardId) continue;
+      const oldEl = elements.contextCardChoices.querySelector(
+        `.poker-pile__fan .poker-card[data-card-id="${state.hoveredCardId}"]`);
+      if (oldEl) leaveCardDetail(state.hoveredCardId, oldEl);
+      enterCardDetail(id, card);
+      return;
+    }
+  });
+
   elements.contextCardChoices.addEventListener("focusin", (event) => {
     if (state.draggingCardId !== null) return;
     const cardEl = event.target.closest(".poker-pile__fan .poker-card");
