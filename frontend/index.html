@@ -4,10 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PromptStudio | 像素提示词工作室</title>
-  <link rel="stylesheet" href="./style.css?v=workflow-note-refine">
+  <link rel="preconnect" href="https://fonts.loli.net" crossorigin>
+  <link rel="stylesheet" href="https://fonts.loli.net/css2?family=Inter:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&display=swap">
+  <link rel="stylesheet" href="./style.css?v=illustration-layout-v1">
 </head>
 <body>
   <div class="pixel-grid" aria-hidden="true"></div>
+  <div class="site-illustration-layer" aria-hidden="true">
+    <img class="site-deco site-deco--paw" src="./assets/illustrations/art-cat-paw-cursor.png" alt="" loading="eager" decoding="async">
+  </div>
   <button id="mobileMenuButton" class="mobile-menu-button" type="button" aria-label="打开导航">菜单</button>
   <div id="scrim" class="scrim" aria-hidden="true"></div>
 
@@ -52,8 +57,13 @@
         </button>
       </nav>
 
+      <img class="sidebar-art" src="./assets/illustrations/prompt-studio-sticker-sheet.png" alt="" aria-hidden="true" loading="eager" decoding="async">
+
       <div class="sidebar-note">
-        <span class="status-chip" id="apiStatus">连接中</span>
+        <div class="sidebar-note-row">
+          <span class="status-chip" id="apiStatus">连接中</span>
+          <button id="refreshButton" class="sidebar-refresh" type="button" aria-label="刷新数据" title="刷新数据">↻</button>
+        </div>
         <strong>Rule-first · DeepSeek LLM</strong>
         <p>模板、变量与上下文卡片先在规则层拼装成 Prompt，再按需交给 DeepSeek LLM 优化或生成。</p>
       </div>
@@ -67,13 +77,11 @@
           <p id="pageSubtitle">把模板、知识和灵感收进一个可复用的 AI 工作台。</p>
         </div>
 
-        <div class="topbar-tools">
-          <button id="refreshButton" class="secondary-button" type="button">刷新数据</button>
-        </div>
       </header>
 
       <main class="content">
         <section class="view-section active" id="dashboardView">
+          <img class="hero-cat" src="./assets/illustrations/art-dashboard-cat.png" alt="" aria-hidden="true" loading="eager" decoding="async">
           <div class="hero-band">
             <div class="hero-copy">
               <span class="pixel-pill">PromptStudio</span>
@@ -235,7 +243,9 @@
         </section>
 
         <section class="view-section" id="templatesView">
+          <img class="view-art view-art--templates" src="./assets/illustrations/art-template-drawer.png" alt="" aria-hidden="true" loading="eager" decoding="async">
           <div class="section-intro">
+            <img class="section-emblem" src="./assets/illustrations/art-floating-cards.png" alt="" aria-hidden="true" loading="eager" decoding="async">
             <span class="pixel-pill">Templates</span>
             <h2>提示词模板库</h2>
             <p>把高频任务拆成可填空的结构。变量写作 <code>{原始材料}</code>、<code>{语气}</code> 这样的格式。</p>
@@ -278,7 +288,9 @@
         </section>
 
         <section class="view-section" id="contextCardsView">
+          <img class="view-art view-art--context" src="./assets/illustrations/art-context-card-table.png" alt="" aria-hidden="true" loading="eager" decoding="async">
           <div class="section-intro">
+            <img class="section-emblem" src="./assets/illustrations/art-floating-cards.png" alt="" aria-hidden="true" loading="eager" decoding="async">
             <span class="pixel-pill">Context</span>
             <h2>上下文卡片库</h2>
             <p>沉淀角色设定、写作规范、项目背景和引用素材，让 Prompt 不再每次从零开始。</p>
@@ -326,7 +338,9 @@
         </section>
 
         <section class="view-section" id="historyView">
+          <img class="view-art view-art--history" src="./assets/illustrations/art-history-archive.png" alt="" aria-hidden="true" loading="eager" decoding="async">
           <div class="section-intro">
+            <img class="section-emblem" src="./assets/illustrations/art-floating-cards.png" alt="" aria-hidden="true" loading="eager" decoding="async">
             <span class="pixel-pill">History</span>
             <h2>生成记录</h2>
             <p>复用、复制或删除历史 Prompt，让每次试验都能被回收。</p>
@@ -345,7 +359,9 @@
         </section>
 
         <section class="view-section" id="aiView">
+          <img class="view-art view-art--ai" src="./assets/illustrations/art-ai-terminal.png" alt="" aria-hidden="true" loading="eager" decoding="async">
           <div class="section-intro">
+            <img class="section-emblem" src="./assets/illustrations/art-floating-cards.png" alt="" aria-hidden="true" loading="eager" decoding="async">
             <span class="pixel-pill">DeepSeek</span>
             <h2>AI 生成控制台</h2>
             <p>把预生成 Prompt 交给后端，API Key 只从服务器环境变量读取。</p>
@@ -410,6 +426,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite">准备就绪</div>
-  <script src="./script.js?v=workflow-note-refine"></script>
+  <script src="./script.js?v=illustration-layout-v1"></script>
 </body>
 </html>

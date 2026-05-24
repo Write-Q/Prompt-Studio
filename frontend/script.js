@@ -1138,10 +1138,17 @@ function renderPokerPile(type, cards) {
 }
 
 const POKER_PAGE_SIZE = 10;
+const POKER_FAN_ARC_DEG = 136;
+const POKER_FAN_LIFT_PX = 38;
 
 function renderPokerFan(type, allCards) {
   const fan = document.createElement("div");
   fan.className = "poker-pile__fan";
+
+  const cat = document.createElement("span");
+  cat.className = "poker-pile__cat";
+  cat.setAttribute("aria-hidden", "true");
+  fan.appendChild(cat);
 
   const totalPages = Math.max(1, Math.ceil(allCards.length / POKER_PAGE_SIZE));
   const pageIndex = Math.min(state.pilePageIndex[type] || 0, totalPages - 1);
@@ -1151,14 +1158,12 @@ function renderPokerFan(type, allCards) {
   const cards = allCards.slice(start, start + POKER_PAGE_SIZE);
 
   const total = cards.length;
-  const step = Math.min(12, total <= 1 ? 0 : 84 / (total - 1));
+  const step = total <= 1 ? 0 : POKER_FAN_ARC_DEG / (total - 1);
   const startAngle = -((total - 1) / 2) * step;
+  const lift = total <= 1 ? 0 : POKER_FAN_LIFT_PX;
 
   cards.forEach((card, index) => {
     const angle = startAngle + index * step;
-    const rad = (angle * Math.PI) / 180;
-    const offsetX = Math.sin(rad) * 150;
-    const offsetY = (1 - Math.cos(rad)) * 150;
 
     const cardEl = renderPokerCard(card);
     cardEl.setAttribute("role", "option");
@@ -1166,9 +1171,11 @@ function renderPokerFan(type, allCards) {
     cardEl.setAttribute("aria-selected",
       state.selectedContextCardIds.has(card.id) ? "true" : "false");
     cardEl.style.setProperty("--fan-transform",
-      `translate(${offsetX}px, ${-offsetY}px) rotate(${angle}deg)`);
+      `rotate(${angle}deg) translateY(${-lift}px)`);
     cardEl.style.setProperty("--fan-transform-hover",
-      `translate(${offsetX}px, ${-offsetY - 14}px) rotate(${angle}deg) scale(1.06)`);
+      `rotate(${angle}deg) translateY(${-lift - 18}px) scale(1.08)`);
+    cardEl.style.setProperty("--fan-transform-detail",
+      `rotate(${angle}deg) translateY(${-lift - 24}px) scale(1.18)`);
     cardEl.style.animationDelay = `${index * 30}ms`;
     if (state.selectedContextCardIds.has(card.id)) {
       cardEl.classList.add("poker-card--selected");
@@ -1343,9 +1350,123 @@ function expandPile(type) {
   }
   state.expandedPileType = type;
   renderContextCardChoices();
+  animatePileOpening(type);
 }
 
 let pokerCollapsing = false;
+const POKER_OPEN_MS = 340;
+const POKER_COLLAPSE_MS = 260;
+const POKER_COLLAPSE_STAGGER_MS = 10;
+const POKER_SETTLE_MS = 320;
+
+function isReducedMotion() {
+  if (typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function onNextPaint(callback) {
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+  window.setTimeout(callback, 16);
+}
+
+function applyMotionFrame(element, frame = {}) {
+  ["transform", "opacity", "filter", "zIndex"].forEach((property) => {
+    if (frame[property] !== undefined) {
+      element.style[property] = String(frame[property]);
+    }
+  });
+}
+
+function runMotion(element, keyframes, options = {}) {
+  if (!element) return null;
+  if (typeof element.animate === "function") {
+    return element.animate(keyframes, options);
+  }
+
+  const frames = Array.isArray(keyframes) ? keyframes : [keyframes];
+  const firstFrame = frames[0] || {};
+  const lastFrame = frames[frames.length - 1] || {};
+  const duration = Number(options.duration) || 0;
+  const delay = Number(options.delay) || 0;
+  const easing = options.easing || "ease";
+  const transitionProperties = ["transform", "opacity", "filter"]
+    .filter((property) => firstFrame[property] !== undefined || lastFrame[property] !== undefined);
+  const previousStyle = {
+    transition: element.style.transition,
+    transform: element.style.transform,
+    opacity: element.style.opacity,
+    filter: element.style.filter,
+    zIndex: element.style.zIndex,
+  };
+  const finishListeners = [];
+  const cancelListeners = [];
+  let cancelled = false;
+  let finishTimer = null;
+
+  function restorePreviousStyle() {
+    element.style.transition = previousStyle.transition;
+    element.style.transform = previousStyle.transform;
+    element.style.opacity = previousStyle.opacity;
+    element.style.filter = previousStyle.filter;
+    element.style.zIndex = previousStyle.zIndex;
+  }
+
+  const delayTimer = window.setTimeout(() => {
+    if (cancelled) return;
+    element.style.transition = "none";
+    applyMotionFrame(element, firstFrame);
+    onNextPaint(() => {
+      if (cancelled) return;
+      element.style.transition = transitionProperties
+        .map((property) => `${property} ${duration}ms ${easing}`)
+        .join(", ");
+      applyMotionFrame(element, lastFrame);
+      finishTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        restorePreviousStyle();
+        finishListeners.forEach((listener) => listener());
+      }, duration + 24);
+    });
+  }, delay);
+
+  return {
+    addEventListener(type, listener) {
+      if (type === "finish") {
+        finishListeners.push(listener);
+      } else if (type === "cancel") {
+        cancelListeners.push(listener);
+      }
+    },
+    cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      window.clearTimeout(delayTimer);
+      if (finishTimer !== null) {
+        window.clearTimeout(finishTimer);
+      }
+      restorePreviousStyle();
+      cancelListeners.forEach((listener) => listener());
+    },
+  };
+}
+
+function animatePileOpening(type) {
+  if (isReducedMotion()) return;
+  onNextPaint(() => {
+    const pile = elements.contextCardChoices?.querySelector(
+      `.poker-pile--expanded[data-poker-pile="${type}"]`);
+    if (!pile) return;
+    pile.classList.add("poker-pile--opening");
+    window.setTimeout(() => {
+      pile.classList.remove("poker-pile--opening");
+    }, POKER_OPEN_MS);
+  });
+}
 
 function collapsePile() {
   if (state.expandedPileType === null) {
@@ -1357,7 +1478,14 @@ function collapsePile() {
   const root = elements.contextCardChoices;
   const fan = root?.querySelector(".poker-pile--expanded .poker-pile__fan");
   const pile = root?.querySelector(".poker-pile--expanded");
+  const closingType = state.expandedPileType;
   if (!fan || !pile) {
+    state.expandedPileType = null;
+    renderContextCardChoices();
+    return;
+  }
+
+  if (isReducedMotion()) {
     state.expandedPileType = null;
     renderContextCardChoices();
     return;
@@ -1365,29 +1493,53 @@ function collapsePile() {
 
   const fanCards = [...fan.querySelectorAll(".poker-card")];
   const pileRect = pile.getBoundingClientRect();
-  const stagger = 20;
+  const targetX = pileRect.left + pileRect.width / 2;
+  const targetY = pileRect.bottom - Math.min(64, pileRect.height / 2);
   pokerCollapsing = true;
+  pile.classList.add("poker-pile--closing");
 
   fanCards.forEach((cardEl, index) => {
     const rect = cardEl.getBoundingClientRect();
-    const dx = pileRect.left + pileRect.width / 2 - (rect.left + rect.width / 2);
-    const dy = pileRect.top + pileRect.height / 2 - (rect.top + rect.height / 2);
-    cardEl.animate(
-      { transform: `translate(${dx}px, ${dy}px) scale(0.6) rotate(0deg)`, opacity: 0 },
+    const dx = targetX - (rect.left + rect.width / 2);
+    const dy = targetY - (rect.top + rect.height / 2);
+    const initialTransform = getComputedStyle(cardEl).transform;
+    runMotion(
+      cardEl,
+      [
+        {
+          transform: initialTransform === "none" ? "translate(0, 0) scale(1)" : initialTransform,
+          opacity: 1,
+          filter: "brightness(1)",
+        },
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(0.58) rotate(0deg)`,
+          opacity: 0,
+          filter: "brightness(1.08)",
+        },
+      ],
       {
-        duration: 260,
-        delay: index * stagger,
+        duration: POKER_COLLAPSE_MS,
+        delay: index * POKER_COLLAPSE_STAGGER_MS,
         easing: "cubic-bezier(0.4, 0, 0.2, 1)",
         fill: "forwards",
       },
     );
   });
 
-  const totalMs = 260 + Math.max(0, fanCards.length - 1) * stagger;
+  const totalMs = POKER_COLLAPSE_MS +
+    Math.max(0, fanCards.length - 1) * POKER_COLLAPSE_STAGGER_MS;
   setTimeout(() => {
     pokerCollapsing = false;
     state.expandedPileType = null;
     renderContextCardChoices();
+    const settledPile = elements.contextCardChoices?.querySelector(
+      `.poker-pile[data-poker-pile="${closingType}"]`);
+    if (settledPile) {
+      settledPile.classList.add("poker-pile--settled");
+      window.setTimeout(() => {
+        settledPile.classList.remove("poker-pile--settled");
+      }, POKER_SETTLE_MS);
+    }
   }, totalMs);
 }
 
@@ -1423,7 +1575,7 @@ function playCard(cardId) {
   if (fromRect) {
     const toEl = elements.contextCardChoices.querySelector(
       `.poker-table .poker-card[data-card-id="${cardId}"]`);
-    if (toEl) flipAnimate(fromRect, toEl);
+    if (toEl) flipAnimate(fromRect, toEl, { variant: "deal" });
   }
 }
 
@@ -1442,7 +1594,7 @@ function recallCard(cardId) {
   if (fromRect && card) {
     const pileEl = elements.contextCardChoices.querySelector(
       `.poker-pile[data-poker-pile="${card.type}"]`);
-    if (pileEl) flipAnimate(fromRect, pileEl);
+    if (pileEl) flipAnimate(fromRect, pileEl, { variant: "recall" });
   }
 }
 
@@ -2117,7 +2269,12 @@ function bindEvents() {
       return;
     }
 
-    if (event.target.closest(".poker-pile__fan")) {
+    const fan = event.target.closest(".poker-pile__fan");
+    if (fan) {
+      const expandedPile = fan.closest(".poker-pile--expanded");
+      if (expandedPile) {
+        collapsePile();
+      }
       return;
     }
 
@@ -2143,7 +2300,7 @@ function bindEvents() {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         expandPile(type);
-        requestAnimationFrame(() => {
+        onNextPaint(() => {
           const firstCard = elements.contextCardChoices.querySelector(
             `.poker-pile[data-poker-pile="${type}"] .poker-pile__fan .poker-card`);
           firstCard?.focus();
@@ -2451,36 +2608,73 @@ loadData();
 
 /* ===== FLIP 飞行框架 ===== */
 const FLIP_DEFAULTS = {
-  duration: 320,
-  easing: "cubic-bezier(0.34, 1.2, 0.5, 1)",
+  duration: 420,
+  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  variant: "deal",
 };
 
 function flipAnimate(fromRect, toEl, options = {}) {
   if (!toEl || !fromRect) return null;
+  if (isReducedMotion()) {
+    return null;
+  }
   const opts = { ...FLIP_DEFAULTS, ...options };
   const toRect = toEl.getBoundingClientRect();
   const dx = fromRect.left - toRect.left;
   const dy = fromRect.top - toRect.top;
   const sx = fromRect.width === 0 ? 1 : fromRect.width / toRect.width;
   const sy = fromRect.height === 0 ? 1 : fromRect.height / toRect.height;
+  const baseTransform = toEl.style.transform || "";
+  const finalTransform = baseTransform || "translate(0, 0) scale(1)";
+  const startScale = opts.variant === "recall" ? 0.9 : 0.98;
+  const landingScale = opts.variant === "recall" ? 0.94 : 1.08;
 
   if (toEl._flipAnim) {
     toEl._flipAnim.cancel();
   }
 
-  const anim = toEl.animate(
+  toEl.dataset.flipActive = "true";
+  const anim = runMotion(
+    toEl,
     [
-      { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, zIndex: 200 },
-      { transform: "translate(0, 0) scale(1, 1)", zIndex: 200 },
+      {
+        offset: 0,
+        transform: `translate(${dx}px, ${dy}px) scale(${sx * startScale}, ${sy * startScale}) ${baseTransform}`.trim(),
+        opacity: 0.68,
+        filter: "brightness(1.12) saturate(1.08)",
+        zIndex: 220,
+      },
+      {
+        offset: 0.72,
+        transform: `translate(${dx * 0.12}px, ${dy * 0.12}px) scale(${landingScale}) ${baseTransform}`.trim(),
+        opacity: 1,
+        filter: "brightness(1.18) saturate(1.08)",
+        zIndex: 220,
+      },
+      {
+        offset: 1,
+        transform: finalTransform,
+        opacity: 1,
+        filter: "brightness(1) saturate(1)",
+        zIndex: 220,
+      },
     ],
     { duration: opts.duration, easing: opts.easing, fill: "both" },
   );
   toEl._flipAnim = anim;
   anim.addEventListener("finish", () => {
     if (toEl._flipAnim === anim) {
+      anim.cancel();
       toEl._flipAnim = null;
+      delete toEl.dataset.flipActive;
     }
     if (typeof opts.onFinish === "function") opts.onFinish();
+  });
+  anim.addEventListener("cancel", () => {
+    if (toEl._flipAnim === anim) {
+      toEl._flipAnim = null;
+    }
+    delete toEl.dataset.flipActive;
   });
   return anim;
 }
