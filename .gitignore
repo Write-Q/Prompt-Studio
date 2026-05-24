@@ -24,5 +24,34 @@ build/
 Thumbs.db
 .superpowers/
 
+# Claude / 项目内部说明文档
 CLAUDE.md
 docs/
+
+# 设计源图原稿（前端不引用）
+frontend/assets/illustrations/*-source.png
+
+# 编辑器 / IDE 工程设置
+.vscode/
+.idea/
+*.code-workspace
+*.iml
+
+# 临时 / 备份文件
+*.bak
+*.swp
+*.swo
+*.tmp
+*.orig
+*~
+
+# 全局日志
+*.log
+
+# 其他常见无关产物
+coverage.xml
+htmlcov/
+.coverage
+.coverage.*
+.tox/
+.cache/
