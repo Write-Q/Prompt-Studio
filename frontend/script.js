@@ -1,65 +1,483 @@
 const state = {
   templates: [],
-  snippets: [],
+  contextCards: [],
   history: [],
   activeView: "dashboard",
   selectedTemplateId: null,
-  selectedSnippetIds: new Set(),
+  selectedContextCardIds: new Set(),
   editingTemplateId: null,
-  editingSnippetId: null,
+  editingContextCardId: null,
+  expandedPileType: null,
+  pilePageIndex: {},
+  hoveredCardId: null,
+  draggingCardId: null,
+  draggingFromZone: null,
 };
 
-const fallbackTemplates = [
+const fallbackTemplates = [];
+const fallbackContextCards = [];
+
+fallbackTemplates.splice(
+  0,
+  fallbackTemplates.length,
   {
     id: 1001,
-    title: "学习笔记整理",
-    category: "学习",
-    tags: ["学习", "总结"],
-    content: "请用{语气}的方式，将以下内容整理成{长度}学习笔记：\n{输入内容}",
-    description: "适合课堂笔记、阅读笔记和复习资料整理。",
+    seed_key: "daily_schedule_planner",
+    title: "日程规划助手",
+    category: "个人效率",
+    tags: ["日程", "计划", "优先级"],
+    content: "你是一位擅长时间管理和现实规划的日程助手。\n\n请根据我的输入，帮我制定一份{计划周期}的安排。\n\n我的可用时间：\n{可用时间}\n\n我的精力状态：\n{精力状态}\n\n需要安排的事项：\n{待安排事项}\n\n请按以下要求输出：\n1. 先判断哪些事情最重要、最紧急。\n2. 把任务安排到合适的时间段。\n3. 标出可以延后、合并或删减的事项。\n4. 给出一份不过度理想化、能实际执行的计划。\n5. 最后补充 3 条执行提醒。",
+    description: "把零散任务整理成可执行的日程安排，适合规划一天、一周或某个阶段的工作与生活事项。",
     created_at: "本地示例",
     updated_at: "本地示例",
   },
   {
     id: 1002,
-    title: "工作周报生成",
-    category: "办公",
-    tags: ["周报", "汇报"],
-    content: "请根据以下工作内容，生成一份{周期}工作周报，语气要求{语气}：\n{输入内容}",
-    description: "适合日常工作复盘和团队汇报。",
+    seed_key: "study_notes_organizer",
+    title: "学习笔记整理",
+    category: "学习成长",
+    tags: ["学习", "笔记", "复习"],
+    content: "你是一位学习教练，请帮我整理下面的学习材料。\n\n学习主题：\n{学习主题}\n\n学习目标：\n{学习目标}\n\n学习材料：\n{学习材料}\n\n请输出：\n1. 核心概念和简明解释。\n2. 知识点之间的关系。\n3. 关键例子或应用场景。\n4. 容易混淆的地方。\n5. 5 个自测问题和参考答案。\n6. 下一步复习建议。",
+    description: "把课程、文章或零散笔记整理成便于理解和复习的学习材料。",
     created_at: "本地示例",
     updated_at: "本地示例",
   },
-];
+  {
+    id: 1003,
+    seed_key: "material_summary_extractor",
+    title: "资料总结与重点提取",
+    category: "信息整理",
+    tags: ["总结", "提炼", "资料"],
+    content: "请把下面的资料整理成一份清晰摘要。\n\n资料类型：\n{资料类型}\n\n总结目的：\n{总结目的}\n\n目标读者：\n{目标读者}\n\n资料内容：\n{资料内容}\n\n请输出：\n1. 一句话概括。\n2. 关键要点。\n3. 对目标读者最重要的信息。\n4. 尚不明确或需要核验的内容。\n5. 可执行的下一步。",
+    description: "从长文本或多段资料中提取重点、结论、待确认事项和可执行下一步。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1004,
+    seed_key: "article_polish_rewrite",
+    title: "文章润色改写",
+    category: "写作表达",
+    tags: ["润色", "改写", "写作"],
+    content: "请帮我润色和改写下面的文字。\n\n改写目标：\n{改写目标}\n\n目标读者：\n{目标读者}\n\n必须保留的内容：\n{保留要求}\n\n原文：\n{原文}\n\n请按以下方式处理：\n1. 先指出原文最需要改进的 3 个问题。\n2. 给出改写后的版本。\n3. 列出关键修改说明。\n4. 不改变原文核心意思，不补充未提供的事实。",
+    description: "在保留原意的前提下优化文章表达，让结构更顺、语气更稳、重点更清楚。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1005,
+    seed_key: "weekly_report_organizer",
+    title: "工作周报整理",
+    category: "工作沟通",
+    tags: ["周报", "复盘", "汇报"],
+    content: "请把下面的工作记录整理成一份清晰的周报。\n\n角色：\n{角色}\n\n周期：\n{周期}\n\n目标读者：\n{目标读者}\n\n工作记录：\n{工作记录}\n\n请输出：\n1. 本周期重点。\n2. 已完成事项。\n3. 关键进展与影响。\n4. 问题、风险和阻塞。\n5. 下周期计划。\n6. 需要协作或决策的事项。",
+    description: "把零散工作记录整理成清晰、克制、面向协作的周报或阶段复盘。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1006,
+    seed_key: "meeting_minutes_organizer",
+    title: "会议纪要整理",
+    category: "工作沟通",
+    tags: ["会议", "纪要", "行动项"],
+    content: "请根据下面的会议记录整理会议纪要。\n\n会议主题：\n{会议主题}\n\n参会对象：\n{参会对象}\n\n会议记录：\n{会议记录}\n\n请输出：\n1. 会议目标。\n2. 已确认结论。\n3. 关键讨论点。\n4. 待办事项，包含负责人、完成标准和时间要求。\n5. 待确认问题。\n6. 下一次跟进建议。",
+    description: "把会议记录整理成结论明确、责任清楚、便于跟进的会议纪要。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1007,
+    seed_key: "communication_expression_optimizer",
+    title: "沟通表达优化",
+    category: "写作表达",
+    tags: ["沟通", "表达", "消息"],
+    content: "请帮我优化下面这段沟通表达。\n\n沟通对象：\n{沟通对象}\n\n沟通目标：\n{沟通目标}\n\n原始表达：\n{原始表达}\n\n请输出：\n1. 更直接清楚的版本。\n2. 更委婉稳妥的版本。\n3. 适合正式场景的版本。\n4. 每个版本适合使用的场景。\n5. 需要避免的表达风险。",
+    description: "把想说的话改成更清楚、更得体、更容易推进事情的表达。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1008,
+    seed_key: "travel_plan_builder",
+    title: "旅行攻略规划",
+    category: "生活助理",
+    tags: ["旅行", "攻略", "规划"],
+    content: "请帮我规划一份旅行攻略。\n\n目的地：\n{目的地}\n\n出行天数：\n{出行天数}\n\n预算范围：\n{预算范围}\n\n偏好和限制：\n{偏好限制}\n\n同行人和特殊需求：\n{同行人和特殊需求}\n\n请输出：\n1. 每天的行程安排。\n2. 交通和路线建议。\n3. 餐饮和休息安排。\n4. 预算分配建议。\n5. 需要提前准备或核验的事项。\n6. 如果时间或预算紧张，给出取舍建议。",
+    description: "根据目的地、天数、预算和偏好规划更顺路、更现实的旅行安排。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1009,
+    seed_key: "product_comparison_decision",
+    title: "商品对比决策",
+    category: "生活助理",
+    tags: ["购物", "对比", "决策"],
+    content: "请帮我比较候选商品并给出购买建议。\n\n购买需求：\n{购买需求}\n\n候选商品：\n{候选商品}\n\n关键标准：\n{关键标准}\n\n当前顾虑：\n{当前顾虑}\n\n请输出：\n1. 我的真实需求判断。\n2. 候选商品对比表。\n3. 每个选项的优点、风险和适合人群。\n4. 推荐选择和理由。\n5. 不建议购买的情况。\n6. 下单前需要核验的信息。",
+    description: "把购买需求和候选商品整理成对比表，帮助做出更稳妥的选择。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 1010,
+    seed_key: "weekly_meal_planner",
+    title: "一周饮食计划",
+    category: "生活助理",
+    tags: ["饮食", "健康", "计划"],
+    content: "请帮我制定一份一周饮食计划。\n\n饮食目标：\n{饮食目标}\n\n人数：\n{人数}\n\n预算范围：\n{预算范围}\n\n忌口或限制：\n{忌口限制}\n\n现有食材和烹饪条件：\n{现有食材和烹饪条件}\n\n请输出：\n1. 一周早餐、午餐、晚餐安排。\n2. 食材采购清单。\n3. 可以提前准备的部分。\n4. 替换方案。\n5. 执行难度和注意事项。",
+    description: "根据饮食目标、人数和限制安排一周菜单，同时兼顾准备成本和执行难度。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+);
 
-const fallbackSnippets = [
+fallbackContextCards.splice(
+  0,
+  fallbackContextCards.length,
   {
     id: 2001,
-    title: "结构化输出原则",
-    tags: ["结构化", "输出"],
-    content: "回答时优先使用标题、要点和行动建议，让结果便于阅读、复制和继续迭代。",
-    source: "本地示例",
+    seed_key: "background_promptstudio_daily_use",
+    type: "background",
+    title: "PromptStudio 日常使用方式",
+    tags: ["PromptStudio", "日常", "工作流"],
+    content: "模板适合保存高频任务的稳定结构，上下文卡片适合保存可复用的背景、规则、格式、示例和检查清单。日常使用时，先选模板，再按任务补充少量卡片，避免一次放入过多无关内容。",
     created_at: "本地示例",
     updated_at: "本地示例",
   },
   {
     id: 2002,
-    title: "友好但高效的语气",
-    tags: ["语气", "写作"],
-    content: "表达要清楚、自然、有一点温度。少用空泛赞美，多给可执行的下一步。",
-    source: "本地示例",
+    seed_key: "background_personal_productivity_context",
+    type: "background",
+    title: "个人效率场景",
+    tags: ["效率", "计划", "任务"],
+    content: "个人效率类任务通常关注优先级、可用时间、精力状态和执行阻力。输出应帮助用户做取舍，而不是把所有事项都安排进去。",
     created_at: "本地示例",
     updated_at: "本地示例",
   },
-];
+  {
+    id: 2003,
+    seed_key: "background_life_assistant_context",
+    type: "background",
+    title: "生活助理场景",
+    tags: ["生活", "助理", "规划"],
+    content: "生活助理类任务需要考虑预算、时间、偏好、限制和准备成本。建议应贴近日常执行，不要只给理想化方案。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2004,
+    seed_key: "background_decision_making_context",
+    type: "background",
+    title: "日常决策关注点",
+    tags: ["决策", "对比", "风险"],
+    content: "日常决策通常不是寻找绝对最优，而是在需求、成本、风险和个人偏好之间找到合适选择。输出应说明推荐理由，也要指出不适合选择的情况。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2005,
+    seed_key: "background_learning_and_writing_context",
+    type: "background",
+    title: "学习与写作场景",
+    tags: ["学习", "写作", "整理"],
+    content: "学习和写作任务要优先帮助用户理解、组织和表达。输出应突出主线、关键概念、例子和可复习内容，不要只做机械摘要。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2006,
+    seed_key: "rule_plan_with_buffer",
+    type: "rule",
+    title: "计划需要留缓冲",
+    tags: ["计划", "时间", "缓冲"],
+    content: "制定计划时，不要默认用户可以一直保持高效率。需要预留休息、切换任务和意外情况的时间；如果事项明显超出可用时间，要主动建议删减或延后。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2007,
+    seed_key: "rule_prioritize_before_detail",
+    type: "rule",
+    title: "先排优先级",
+    tags: ["优先级", "任务", "取舍"],
+    content: "面对多项任务时，先区分重要紧急、重要不紧急、可委托、可延后。不要直接进入细节安排，否则容易把低价值事项也排得很满。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2008,
+    seed_key: "rule_no_unverified_claims",
+    type: "rule",
+    title: "不补造未给信息",
+    tags: ["准确性", "事实", "边界"],
+    content: "不得把输入中没有提供的信息写成确定事实。涉及价格、营业时间、政策、健康、法律或其他可能变化的信息时，应提示用户自行核验或补充材料。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2009,
+    seed_key: "rule_clear_natural_tone",
+    type: "rule",
+    title: "清楚自然的语气",
+    tags: ["语气", "表达", "写作"],
+    content: "默认语气应清楚、自然、克制。少用空泛口号和夸张赞美，优先给能直接使用的表达和步骤。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2010,
+    seed_key: "rule_actionable_advice",
+    type: "rule",
+    title: "建议要能执行",
+    tags: ["建议", "执行", "行动"],
+    content: "建议应尽量写成具体动作，包含做什么、何时做、做到什么程度。避免只写提升效率、优化表达、注意健康这类抽象方向。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2011,
+    seed_key: "rule_keep_user_constraints",
+    type: "rule",
+    title: "尊重用户限制",
+    tags: ["限制", "偏好", "约束"],
+    content: "用户提供的预算、时间、忌口、风格、目标读者和必须保留内容都应作为硬约束处理。如果建议与约束冲突，要说明原因并给替代方案。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2012,
+    seed_key: "rule_when_information_missing",
+    type: "rule",
+    title: "信息不足时先说明",
+    tags: ["澄清", "假设", "不确定"],
+    content: "当关键信息缺失时，先说明缺口。如果用户需要直接产出，可以基于少量明确假设继续，但要把假设和待确认事项单独列出。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2013,
+    seed_key: "format_daily_schedule",
+    type: "format",
+    title: "日程安排格式",
+    tags: ["格式", "日程", "计划"],
+    content: "日程建议按时间段输出，包含时间、任务、目的、注意事项。末尾列出可延后事项、缓冲时间和当天最重要的 1 到 3 件事。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2014,
+    seed_key: "format_study_notes",
+    type: "format",
+    title: "学习笔记格式",
+    tags: ["格式", "学习", "笔记"],
+    content: "学习笔记建议包含主题概览、核心概念、概念关系、例子、常见误区、自测问题和复习建议。标题要短，方便后续回看。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2015,
+    seed_key: "format_summary_brief",
+    type: "format",
+    title: "资料摘要格式",
+    tags: ["格式", "总结", "摘要"],
+    content: "资料摘要建议按一句话概括、关键要点、重要细节、待确认内容、下一步输出。长材料要优先总结对当前目的有帮助的信息。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2016,
+    seed_key: "format_weekly_report",
+    type: "format",
+    title: "周报结构",
+    tags: ["格式", "周报", "汇报"],
+    content: "周报建议包含本周期重点、已完成事项、关键进展、问题风险、下周期计划和需要协作的事项。按结果归类，不按时间流水账排列。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2017,
+    seed_key: "format_meeting_minutes",
+    type: "format",
+    title: "会议纪要结构",
+    tags: ["格式", "会议", "行动项"],
+    content: "会议纪要建议包含会议目标、已确认结论、关键讨论点、待办事项、待确认问题和下次跟进。行动项要写清负责人、完成标准和时间要求。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2018,
+    seed_key: "format_comparison_table",
+    type: "format",
+    title: "对比选择表",
+    tags: ["格式", "对比", "决策"],
+    content: "对比多个选项时使用表格，列包含选项、适合情况、优点、风险、成本、推荐程度。表格后必须给出明确建议和选择理由。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2019,
+    seed_key: "format_meal_plan",
+    type: "format",
+    title: "饮食计划格式",
+    tags: ["格式", "饮食", "计划"],
+    content: "饮食计划建议按日期列出三餐，另附采购清单、提前准备事项、替换方案和注意事项。不要给出难以采购或准备成本过高的安排。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2020,
+    seed_key: "example_task_to_schedule",
+    type: "example",
+    title: "示例：模糊事项到日程安排",
+    tags: ["示例", "日程", "计划"],
+    content: "输入：写报告、买菜、运动、回消息、整理房间。输出应先判断优先级，再安排到时间段，并把低优先级事项放进可选清单。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2021,
+    seed_key: "example_notes_to_review",
+    type: "example",
+    title: "示例：课堂笔记到复习材料",
+    tags: ["示例", "学习", "复习"],
+    content: "输入：一段课程笔记。输出应整理为核心概念、解释、例子、误区和自测题，方便复习，而不是只改写原文。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2022,
+    seed_key: "example_raw_text_to_summary",
+    type: "example",
+    title: "示例：长资料到重点摘要",
+    tags: ["示例", "总结", "资料"],
+    content: "输入：多段会议材料或文章摘录。输出应先给一句话结论，再列关键要点、影响、待确认内容和下一步。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2023,
+    seed_key: "example_sentence_to_message",
+    type: "example",
+    title: "示例：直接想法到得体表达",
+    tags: ["示例", "沟通", "表达"],
+    content: "输入：你怎么还没给我。优化后可以表达为：想确认一下这个事项目前的进展，方便我安排后续时间。这样更容易推进沟通。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2024,
+    seed_key: "example_items_to_comparison",
+    type: "example",
+    title: "示例：候选商品到购买建议",
+    tags: ["示例", "购物", "决策"],
+    content: "输入：三个耳机型号和预算。输出应按需求、价格、续航、佩戴、风险和适合人群比较，最后给明确推荐。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2025,
+    seed_key: "example_ingredients_to_meal_plan",
+    type: "example",
+    title: "示例：现有食材到菜单",
+    tags: ["示例", "饮食", "菜单"],
+    content: "输入：鸡蛋、番茄、青菜、鸡胸肉。输出应安排简单可执行的餐食，并说明哪些食材可提前处理、哪些可以替换。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2026,
+    seed_key: "checklist_plan_before_execution",
+    type: "checklist",
+    title: "计划执行前检查",
+    tags: ["检查", "计划", "执行"],
+    content: "检查计划是否留出缓冲、是否有明确优先级、是否超出可用时间、是否包含下一步动作、是否把可延后事项单独列出。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2027,
+    seed_key: "checklist_writing_before_send",
+    type: "checklist",
+    title: "发送前表达检查",
+    tags: ["检查", "沟通", "写作"],
+    content: "检查表达是否说明目的、是否语气合适、是否有多余情绪、是否给对方明确动作、是否容易被误解。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2028,
+    seed_key: "checklist_summary_quality",
+    type: "checklist",
+    title: "摘要质量检查",
+    tags: ["检查", "摘要", "总结"],
+    content: "检查摘要是否保留核心信息、是否突出当前目的、是否区分事实和推断、是否遗漏关键限制、是否列出待确认内容。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2029,
+    seed_key: "checklist_meeting_minutes",
+    type: "checklist",
+    title: "会议纪要检查",
+    tags: ["检查", "会议", "纪要"],
+    content: "检查纪要是否包含结论、行动项、负责人、完成标准、时间要求和待确认问题。没有明确负责人的事项不要写成已落实。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+  {
+    id: 2030,
+    seed_key: "checklist_decision_before_purchase",
+    type: "checklist",
+    title: "购买决策检查",
+    tags: ["检查", "购物", "决策"],
+    content: "检查推荐是否符合真实需求、预算和限制；是否说明风险；是否列出不建议购买的情况；是否提示下单前要核验的关键信息。",
+    created_at: "本地示例",
+    updated_at: "本地示例",
+  },
+);
+
+const contextCardTypeLabels = {
+  background: "\u80cc\u666f\u8d44\u6599",
+  rule: "\u5199\u4f5c\u89c4\u5219",
+  format: "\u8f93\u51fa\u683c\u5f0f",
+  example: "\u53c2\u8003\u793a\u4f8b",
+  checklist: "\u68c0\u67e5\u6e05\u5355",
+};
+
+const POKER_PILE_ORDER = ["background", "rule", "format", "example", "checklist"];
+
+const pokerTypeBadgeText = {
+  background: "\u80cc\u666f",
+  rule: "\u89c4\u5219",
+  format: "\u683c\u5f0f",
+  example: "\u793a\u4f8b",
+  checklist: "\u68c0\u67e5",
+};
+
+function contextCardTypeLabel(type) {
+  return contextCardTypeLabels[type] || contextCardTypeLabels.background;
+}
+
+function pokerBadgeText(type) {
+  return pokerTypeBadgeText[type] || pokerTypeBadgeText.background;
+}
 
 const pageMeta = {
   dashboard: ["仪表盘", "把模板、知识和灵感收进一个可复用的 AI 工作台。"],
   templates: ["提示词模板", "沉淀高频任务的结构，让好 Prompt 可以复用。"],
-  snippets: ["知识片段", "保存背景资料、写作规范和项目上下文。"],
+  contextCards: ["上下文卡片", "保存背景资料、写作规范和项目上下文。"],
   history: ["生成记录", "回收每次试验，不让好结果只出现一次。"],
-  ai: ["AI 生成", "把最终 Prompt 交给 DeepSeek，并查看流式回答。"],
+  ai: ["AI 生成", "把预生成 Prompt 交给 DeepSeek，并查看流式回答。"],
 };
+
+const dateTimeFormatter = new Intl.DateTimeFormat("zh-CN", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 
 const elements = {
   mobileMenuButton: document.querySelector("#mobileMenuButton"),
@@ -68,25 +486,33 @@ const elements = {
   pageSubtitle: document.querySelector("#pageSubtitle"),
   navItems: document.querySelectorAll(".nav-item"),
   viewSections: document.querySelectorAll(".view-section"),
-  globalSearch: document.querySelector("#globalSearch"),
   refreshButton: document.querySelector("#refreshButton"),
   toast: document.querySelector("#toast"),
   apiStatus: document.querySelector("#apiStatus"),
+  catStatusText: document.querySelector("#catStatusText"),
+  consoleCat: document.querySelector(".console-cat"),
 
-  snippetCount: document.querySelector("#snippetCount"),
+  contextCardCount: document.querySelector("#contextCardCount"),
   templateCount: document.querySelector("#templateCount"),
   historyCount: document.querySelector("#historyCount"),
   latestUpdate: document.querySelector("#latestUpdate"),
 
   quickTemplateSelect: document.querySelector("#quickTemplateSelect"),
-  quickKeyword: document.querySelector("#quickKeyword"),
   variableFields: document.querySelector("#variableFields"),
   variableCount: document.querySelector("#variableCount"),
-  snippetChoices: document.querySelector("#snippetChoices"),
-  selectedSnippetCount: document.querySelector("#selectedSnippetCount"),
-  generatePromptButton: document.querySelector("#generatePromptButton"),
+  contextCardChoices: document.querySelector("#contextCardChoices"),
+  selectedContextCardCount: document.querySelector("#selectedContextCardCount"),
+  workflowSteps: document.querySelectorAll("[data-workflow-step]"),
+  previewPromptButton: document.querySelector("#previewPromptButton"),
+  savePromptButton: document.querySelector("#savePromptButton"),
   finalPrompt: document.querySelector("#finalPrompt"),
   promptHint: document.querySelector("#promptHint"),
+  optimizePromptButton: document.querySelector("#optimizePromptButton"),
+  optimizeBox: document.querySelector("#optimizeBox"),
+  optimizeHint: document.querySelector("#optimizeHint"),
+  optimizedPrompt: document.querySelector("#optimizedPrompt"),
+  applyOptimizedButton: document.querySelector("#applyOptimizedButton"),
+  copyOptimizedButton: document.querySelector("#copyOptimizedButton"),
   copyPromptButton: document.querySelector("#copyPromptButton"),
   pushToAiButton: document.querySelector("#pushToAiButton"),
   aiPromptInput: document.querySelector("#aiPromptInput"),
@@ -100,17 +526,19 @@ const elements = {
   templateContent: document.querySelector("#templateContent"),
   saveTemplateButton: document.querySelector("#saveTemplateButton"),
   cancelTemplateEditButton: document.querySelector("#cancelTemplateEditButton"),
+  templateListCount: document.querySelector("#templateListCount"),
   templateList: document.querySelector("#templateList"),
 
-  snippetForm: document.querySelector("#snippetForm"),
-  snippetFormTitle: document.querySelector("#snippetFormTitle"),
-  snippetTitle: document.querySelector("#snippetTitle"),
-  snippetTags: document.querySelector("#snippetTags"),
-  snippetSource: document.querySelector("#snippetSource"),
-  snippetContent: document.querySelector("#snippetContent"),
-  saveSnippetButton: document.querySelector("#saveSnippetButton"),
-  cancelSnippetEditButton: document.querySelector("#cancelSnippetEditButton"),
-  snippetList: document.querySelector("#snippetList"),
+  contextCardForm: document.querySelector("#contextCardForm"),
+  contextCardFormTitle: document.querySelector("#contextCardFormTitle"),
+  contextCardType: document.querySelector("#contextCardType"),
+  contextCardTitle: document.querySelector("#contextCardTitle"),
+  contextCardTags: document.querySelector("#contextCardTags"),
+  contextCardContent: document.querySelector("#contextCardContent"),
+  saveContextCardButton: document.querySelector("#saveContextCardButton"),
+  cancelContextCardEditButton: document.querySelector("#cancelContextCardEditButton"),
+  contextCardListCount: document.querySelector("#contextCardListCount"),
+  contextCardList: document.querySelector("#contextCardList"),
 
   recentHistoryList: document.querySelector("#recentHistoryList"),
   historyList: document.querySelector("#historyList"),
@@ -123,12 +551,26 @@ const elements = {
   llmHint: document.querySelector("#llmHint"),
   llmAnswer: document.querySelector("#llmAnswer"),
   copyAnswerButton: document.querySelector("#copyAnswerButton"),
+  saveAnswerContextCardButton: document.querySelector("#saveAnswerContextCardButton"),
+  terminalState: document.querySelector("#terminalState"),
+  terminalProgress: document.querySelector("#terminalProgress"),
+  answerStats: document.querySelector("#answerStats"),
+  hoverTooltip: document.createElement("div"),
 };
+
+const customSelects = new Map();
+
+elements.hoverTooltip.className = "hover-tooltip";
+document.body.appendChild(elements.hoverTooltip);
 
 function showToast(message, isError = false) {
   elements.toast.textContent = message;
   elements.toast.classList.toggle("error", isError);
   elements.toast.classList.add("show");
+
+  if (isError) {
+    setCatMood("小猫发现了一处需要处理的问题。", "alert");
+  }
 
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => {
@@ -136,10 +578,83 @@ function showToast(message, isError = false) {
   }, 2600);
 }
 
+function moveHoverTooltip(event) {
+  if (!elements.hoverTooltip.classList.contains("show")) {
+    return;
+  }
+
+  const margin = 14;
+  const tooltipRect = elements.hoverTooltip.getBoundingClientRect();
+  let left = event.clientX + margin;
+  let top = event.clientY + margin;
+
+  if (left + tooltipRect.width > window.innerWidth - margin) {
+    left = event.clientX - tooltipRect.width - margin;
+  }
+
+  if (top + tooltipRect.height > window.innerHeight - margin) {
+    top = event.clientY - tooltipRect.height - margin;
+  }
+
+  elements.hoverTooltip.style.left = `${Math.max(margin, left)}px`;
+  elements.hoverTooltip.style.top = `${Math.max(margin, top)}px`;
+}
+
+function showHoverTooltip(target, event) {
+  const text = target?.dataset?.tooltip?.trim();
+  if (!text) {
+    return;
+  }
+
+  elements.hoverTooltip.textContent = text;
+  elements.hoverTooltip.classList.add("show");
+  moveHoverTooltip(event);
+}
+
+function hideHoverTooltip() {
+  elements.hoverTooltip.classList.remove("show");
+}
+
 function setApiStatus(message, mode = "pending") {
   elements.apiStatus.textContent = message;
   elements.apiStatus.classList.toggle("ok", mode === "ok");
   elements.apiStatus.classList.toggle("error", mode === "error");
+}
+
+function setCatMood(message, mood = "idle") {
+  elements.catStatusText.textContent = message;
+  elements.consoleCat.classList.remove("is-working", "is-happy", "is-alert");
+
+  if (mood === "working") {
+    elements.consoleCat.classList.add("is-working");
+  }
+
+  if (mood === "happy") {
+    elements.consoleCat.classList.add("is-happy");
+  }
+
+  if (mood === "alert") {
+    elements.consoleCat.classList.add("is-alert");
+  }
+}
+
+function setWorkflowStep(activeStep = "compose") {
+  const stepOrder = ["compose", "preview", "optimize", "save"];
+  const activeIndex = Math.max(0, stepOrder.indexOf(activeStep));
+
+  elements.workflowSteps.forEach((step) => {
+    const index = stepOrder.indexOf(step.dataset.workflowStep);
+    step.classList.toggle("is-active", index === activeIndex);
+    step.classList.toggle("is-done", index >= 0 && index < activeIndex);
+  });
+}
+
+function setTerminalStatus(label, progress = 0, isRunning = false, isError = false) {
+  elements.terminalState.textContent = label;
+  elements.terminalProgress.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
+  const wrapper = elements.terminalState.closest(".terminal-status");
+  wrapper.classList.toggle("is-running", isRunning);
+  wrapper.classList.toggle("is-error", isError);
 }
 
 function escapeHtml(value) {
@@ -173,29 +688,237 @@ function extractVariables(content) {
   return variables;
 }
 
-function getKeyword() {
-  return elements.globalSearch.value.trim().toLowerCase();
+function summarizeForHover(text, maxLength = 180) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength)}…`
+    : normalized;
 }
 
-function matchesKeyword(item) {
-  const keyword = getKeyword();
-  if (!keyword) {
-    return true;
+function templateHoverText(template) {
+  const variables = extractVariables(template.content || "");
+  return [
+    template.description || summarizeForHover(template.content),
+    template.category ? `分类：${template.category}` : "",
+    (template.tags || []).length ? `标签：${template.tags.join("、")}` : "",
+    variables.length ? `变量：${variables.join("、")}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+function contextCardHoverText(card) {
+  return [
+    `类型：${contextCardTypeLabel(card.type)}`,
+    (card.tags || []).length ? `标签：${card.tags.join("、")}` : "",
+    summarizeForHover(card.content),
+  ].filter(Boolean).join("\n");
+}
+
+function templateForSelectOption(option) {
+  return state.templates.find((item) => String(item.id) === String(option.value)) ?? null;
+}
+
+function templateSelectOptionSummary(option) {
+  const template = templateForSelectOption(option);
+  if (!template) {
+    return "";
   }
 
-  return [
-    item.title,
-    item.category,
-    item.source,
-    item.description,
-    item.content,
-    item.final_prompt,
-    item.created_at,
-    (item.tags || []).join(" "),
-  ]
-    .join(" ")
-    .toLowerCase()
-    .includes(keyword);
+  return [template.category, (template.tags || []).slice(0, 2).join(" / ")].filter(Boolean).join(" · ");
+}
+
+function templateSelectOptionDetail(option) {
+  const template = templateForSelectOption(option);
+  return template ? summarizeForHover(template.description || template.content, 76) : "";
+}
+
+function selectedOptionSummary(select, option, options) {
+  if (!option) {
+    return "";
+  }
+
+  if (options.summary) {
+    return options.summary(option);
+  }
+
+  return option.dataset.summary || "";
+}
+
+function closeCustomSelectsExcept(exceptSelect = null) {
+  customSelects.forEach((data, select) => {
+    if (select === exceptSelect) {
+      return;
+    }
+    data.root.classList.remove("open");
+    data.trigger.setAttribute("aria-expanded", "false");
+    data.activeIndex = -1;
+  });
+}
+
+function closeCustomSelects() {
+  closeCustomSelectsExcept();
+}
+
+function setActiveCustomOption(data, index) {
+  const options = [...data.menu.querySelectorAll(".custom-select-option")];
+  if (!options.length) {
+    data.activeIndex = -1;
+    return;
+  }
+
+  const nextIndex = (index + options.length) % options.length;
+  data.activeIndex = nextIndex;
+
+  options.forEach((option, optionIndex) => {
+    option.classList.toggle("active", optionIndex === nextIndex);
+  });
+  options[nextIndex].scrollIntoView({ block: "nearest" });
+}
+
+function openCustomSelect(select) {
+  const data = customSelects.get(select);
+  if (!data) {
+    return;
+  }
+
+  closeCustomSelectsExcept(select);
+  data.root.classList.add("open");
+  data.trigger.setAttribute("aria-expanded", "true");
+  const selectedIndex = Math.max(0, [...select.options].findIndex((option) => option.value === select.value));
+  setActiveCustomOption(data, selectedIndex);
+}
+
+function selectOption(select, value) {
+  const data = customSelects.get(select);
+  if (!data) {
+    return;
+  }
+
+  select.value = value;
+  refreshCustomSelect(select);
+  closeCustomSelects();
+  hideHoverTooltip();
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function refreshCustomSelect(select) {
+  const data = customSelects.get(select);
+  if (!data) {
+    return;
+  }
+
+  const options = [...select.options];
+  const selectedOption = select.selectedOptions[0] || options[0];
+  const selectedSummary = selectedOptionSummary(select, selectedOption, data.options);
+
+  data.value.textContent = selectedOption ? selectedOption.textContent : "暂无选项";
+  data.summary.textContent = selectedSummary;
+  data.summary.classList.toggle("is-empty", !selectedSummary);
+  data.menu.innerHTML = options
+    .map((option, index) => {
+      const isSelected = option.value === select.value;
+      const summary = data.options.summary ? data.options.summary(option) : option.dataset.summary || "";
+      const detail = data.options.detail ? data.options.detail(option) : "";
+      const optionClass = `custom-select-option${isSelected ? " selected" : ""}`;
+      return `
+        <button class="${optionClass}" type="button" role="option" data-select-value="${escapeHtml(option.value)}" data-option-index="${index}" aria-selected="${isSelected}">
+          <span>${escapeHtml(option.textContent)}</span>
+          ${summary ? `<small>${escapeHtml(summary)}</small>` : ""}
+          ${detail ? `<em>${escapeHtml(detail)}</em>` : ""}
+        </button>
+      `;
+    })
+    .join("");
+}
+
+function enhanceSelect(select, options = {}) {
+  if (!select || customSelects.has(select)) {
+    return;
+  }
+
+  select.classList.add("native-select");
+  select.setAttribute("aria-hidden", "true");
+  select.tabIndex = -1;
+  const root = document.createElement("div");
+  root.className = `custom-select ${options.theme === "dark" ? "dark" : ""}`;
+  root.setAttribute("data-custom-select-id", select.id);
+  root.innerHTML = `
+    <button class="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+      <span class="custom-select-value"></span>
+      <small class="custom-select-summary"></small>
+      <b aria-hidden="true">⌄</b>
+    </button>
+    <div class="custom-select-menu" role="listbox"></div>
+  `;
+  select.insertAdjacentElement("afterend", root);
+
+  const data = {
+    select,
+    root,
+    trigger: root.querySelector(".custom-select-trigger"),
+    value: root.querySelector(".custom-select-value"),
+    summary: root.querySelector(".custom-select-summary"),
+    menu: root.querySelector(".custom-select-menu"),
+    options,
+    activeIndex: -1,
+  };
+  customSelects.set(select, data);
+
+  data.trigger.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (data.root.classList.contains("open")) {
+      closeCustomSelects();
+    } else {
+      openCustomSelect(select);
+    }
+  });
+
+  data.root.addEventListener("click", (event) => {
+    const optionButton = event.target.closest(".custom-select-option");
+    if (!optionButton) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    selectOption(select, optionButton.dataset.selectValue);
+  });
+
+  data.root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeCustomSelects();
+      data.trigger.focus();
+      return;
+    }
+
+    if (event.key === "Enter" && data.root.classList.contains("open") && data.activeIndex >= 0) {
+      const activeOption = data.menu.querySelectorAll(".custom-select-option")[data.activeIndex];
+      if (activeOption) {
+        event.preventDefault();
+        selectOption(select, activeOption.dataset.selectValue);
+      }
+      return;
+    }
+
+    if (["Enter", " ", "ArrowDown", "ArrowUp"].includes(event.key)) {
+      event.preventDefault();
+      if (!data.root.classList.contains("open")) {
+        openCustomSelect(select);
+        return;
+      }
+      setActiveCustomOption(data, data.activeIndex + (event.key === "ArrowUp" ? -1 : 1));
+    }
+  });
+
+  refreshCustomSelect(select);
+}
+
+function initializeCustomSelects() {
+  enhanceSelect(elements.quickTemplateSelect, {
+    summary: templateSelectOptionSummary,
+    detail: templateSelectOptionDetail,
+  });
+  enhanceSelect(elements.contextCardType);
+  enhanceSelect(elements.llmModel, { theme: "dark" });
 }
 
 async function requestJson(url, options = {}) {
@@ -253,7 +976,12 @@ function formatDate(value) {
     return value || "--";
   }
 
-  return String(value).replace("T", " ").slice(0, 16);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value);
+  }
+
+  return dateTimeFormatter.format(date).replace(/\//g, "-");
 }
 
 function renderTags(tags = [], category = null) {
@@ -272,10 +1000,10 @@ function renderTags(tags = [], category = null) {
 }
 
 function renderStats() {
-  elements.snippetCount.textContent = state.snippets.length;
+  elements.contextCardCount.textContent = state.contextCards.length;
   elements.templateCount.textContent = state.templates.length;
   elements.historyCount.textContent = state.history.length;
-  elements.latestUpdate.textContent = formatDate(state.history[0]?.created_at)?.slice(5) || "--";
+  elements.latestUpdate.textContent = formatDate(state.history[0]?.created_at) || "--";
 }
 
 function renderTemplateSelect() {
@@ -283,6 +1011,7 @@ function renderTemplateSelect() {
 
   if (!state.templates.length) {
     elements.quickTemplateSelect.innerHTML = '<option value="">暂无模板</option>';
+    refreshCustomSelect(elements.quickTemplateSelect);
     renderVariables();
     return;
   }
@@ -291,7 +1020,9 @@ function renderTemplateSelect() {
     .map((item) => `<option value="${item.id}">${escapeHtml(item.title)}</option>`)
     .join("");
   elements.quickTemplateSelect.value = String(state.selectedTemplateId);
+  refreshCustomSelect(elements.quickTemplateSelect);
   renderVariables();
+  updateWorkSurface();
 }
 
 function renderVariables() {
@@ -315,37 +1046,561 @@ function renderVariables() {
     .map((name) => `
       <label>
         ${escapeHtml(name)}
-        <input data-variable-name="${escapeHtml(name)}" type="text" placeholder="填写 ${escapeHtml(name)}">
+        <input data-variable-name="${escapeHtml(name)}" name="var_${escapeHtml(name)}" type="text" autocomplete="off" placeholder="">
       </label>
     `)
     .join("");
 }
 
-function renderSnippetChoices() {
-  const snippets = state.snippets.filter(matchesKeyword);
+function renderContextCardChoices() {
+  const zone = elements.contextCardChoices;
+  zone.classList.add("poker-zone");
+  zone.innerHTML = "";
 
-  if (!snippets.length) {
-    elements.snippetChoices.innerHTML = '<div class="empty-state">暂无可选知识片段。</div>';
-    elements.selectedSnippetCount.textContent = `已选 ${state.selectedSnippetIds.size} 个`;
+  const table = document.createElement("div");
+  table.className = "poker-table";
+  table.dataset.pokerTable = "";
+  table.setAttribute("aria-label", "已挂载卡片");
+  zone.appendChild(table);
+
+  const hand = document.createElement("div");
+  hand.className = "poker-hand";
+  hand.dataset.pokerHand = "";
+  hand.setAttribute("role", "group");
+  hand.setAttribute("aria-label", "知识卡片牌堆");
+  zone.appendChild(hand);
+
+  if (!state.contextCards.length) {
+    hand.innerHTML = '<div class="empty-state">暂无可选上下文卡片。</div>';
+    updateSelectedContextCardCount();
+    updateWorkSurface();
     return;
   }
 
-  elements.snippetChoices.innerHTML = snippets
-    .map((item) => `
-      <label class="choice-card">
-        <input type="checkbox" value="${item.id}" data-snippet-choice ${state.selectedSnippetIds.has(item.id) ? "checked" : ""}>
-        <span>
-          <strong>${escapeHtml(item.title)}</strong>
-          <small>${escapeHtml((item.tags || []).join(" / ") || item.source || "无标签")}</small>
-        </span>
-      </label>
-    `)
-    .join("");
-  updateSelectedSnippetCount();
+  const grouped = groupContextCardsByType(state.contextCards);
+  POKER_PILE_ORDER.forEach((type) => {
+    const cards = grouped[type];
+    if (!cards.length) {
+      return;
+    }
+    hand.appendChild(renderPokerPile(type, cards));
+  });
+
+  renderPokerTable(table);
+  updateSelectedContextCardCount();
+  updateWorkSurface();
+}
+
+function groupContextCardsByType(cards) {
+  const buckets = {};
+  POKER_PILE_ORDER.forEach((type) => { buckets[type] = []; });
+  cards.forEach((card) => {
+    const bucket = buckets[card.type] ? card.type : "background";
+    buckets[bucket].push(card);
+  });
+  return buckets;
+}
+
+function renderPokerPile(type, cards) {
+  const isExpanded = state.expandedPileType === type;
+  const isDimmed = state.expandedPileType !== null && !isExpanded;
+
+  const pile = document.createElement("button");
+  pile.type = "button";
+  pile.className = "poker-pile";
+  if (isExpanded) pile.classList.add("poker-pile--expanded");
+  if (isDimmed) pile.classList.add("poker-pile--dimmed");
+  pile.dataset.pokerPile = type;
+
+  const selectedCount = cards.filter((card) => state.selectedContextCardIds.has(card.id)).length;
+  if (selectedCount > 0 && selectedCount < cards.length) {
+    pile.classList.add("poker-pile--has-selected");
+  } else if (selectedCount > 0 && selectedCount === cards.length) {
+    pile.classList.add("poker-pile--all-selected");
+  }
+
+  pile.setAttribute("aria-label",
+    `${contextCardTypeLabel(type)} ${cards.length} 张，${selectedCount} 张已挂载`);
+  pile.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+
+  if (!isExpanded) {
+    pile.appendChild(renderPokerCard(cards[0]));
+  } else {
+    pile.appendChild(renderPokerFan(type, cards));
+  }
+
+  const count = document.createElement("span");
+  count.className = "poker-pile__count";
+  count.textContent = selectedCount > 0 ? `${selectedCount}/${cards.length}` : `${cards.length}`;
+  pile.appendChild(count);
+
+  return pile;
+}
+
+const POKER_PAGE_SIZE = 10;
+const POKER_FAN_ARC_DEG = 136;
+const POKER_FAN_LIFT_PX = 38;
+
+function renderPokerFan(type, allCards) {
+  const fan = document.createElement("div");
+  fan.className = "poker-pile__fan";
+
+  const cat = document.createElement("span");
+  cat.className = "poker-pile__cat";
+  cat.setAttribute("aria-hidden", "true");
+  fan.appendChild(cat);
+
+  const totalPages = Math.max(1, Math.ceil(allCards.length / POKER_PAGE_SIZE));
+  const pageIndex = Math.min(state.pilePageIndex[type] || 0, totalPages - 1);
+  state.pilePageIndex[type] = pageIndex;
+
+  const start = pageIndex * POKER_PAGE_SIZE;
+  const cards = allCards.slice(start, start + POKER_PAGE_SIZE);
+
+  const total = cards.length;
+  const step = total <= 1 ? 0 : POKER_FAN_ARC_DEG / (total - 1);
+  const startAngle = -((total - 1) / 2) * step;
+  const lift = total <= 1 ? 0 : POKER_FAN_LIFT_PX;
+
+  cards.forEach((card, index) => {
+    const angle = startAngle + index * step;
+
+    const cardEl = renderPokerCard(card);
+    cardEl.setAttribute("role", "option");
+    cardEl.setAttribute("tabindex", "0");
+    cardEl.setAttribute("aria-selected",
+      state.selectedContextCardIds.has(card.id) ? "true" : "false");
+    cardEl.style.setProperty("--fan-transform",
+      `rotate(${angle}deg) translateY(${-lift}px)`);
+    cardEl.style.setProperty("--fan-transform-hover",
+      `rotate(${angle}deg) translateY(${-lift - 18}px) scale(1.08)`);
+    cardEl.style.setProperty("--fan-transform-detail",
+      `rotate(${angle}deg) translateY(${-lift - 24}px) scale(1.18)`);
+    cardEl.style.animationDelay = `${index * 30}ms`;
+    if (state.selectedContextCardIds.has(card.id)) {
+      cardEl.classList.add("poker-card--selected");
+    }
+    if (state.hoveredCardId === card.id && state.draggingCardId === null) {
+      cardEl.classList.add("poker-card--detail");
+      renderPokerCardInternals(cardEl, card, true);
+    }
+    fan.appendChild(cardEl);
+  });
+
+  if (totalPages > 1) {
+    fan.appendChild(renderPokerPager(type, pageIndex, totalPages));
+  }
+
+  return fan;
+}
+
+function renderPokerPager(type, pageIndex, totalPages) {
+  const pager = document.createElement("div");
+  pager.className = "poker-pile__pager";
+  pager.dataset.pokerPager = type;
+
+  const prev = document.createElement("button");
+  prev.type = "button";
+  prev.className = "poker-pile__pager-button";
+  prev.textContent = "‹";
+  prev.dataset.pokerPagerDir = "-1";
+  prev.disabled = pageIndex === 0;
+  prev.setAttribute("aria-label", "上一页");
+  pager.appendChild(prev);
+
+  for (let i = 0; i < totalPages; i++) {
+    const dot = document.createElement("span");
+    dot.className = "poker-pile__pager-dot";
+    if (i === pageIndex) dot.classList.add("is-active");
+    pager.appendChild(dot);
+  }
+
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "poker-pile__pager-button";
+  next.textContent = "›";
+  next.dataset.pokerPagerDir = "1";
+  next.disabled = pageIndex === totalPages - 1;
+  next.setAttribute("aria-label", "下一页");
+  pager.appendChild(next);
+
+  return pager;
+}
+
+function pagePile(type, delta) {
+  const grouped = groupContextCardsByType(state.contextCards);
+  const cards = grouped[type] || [];
+  const totalPages = Math.max(1, Math.ceil(cards.length / POKER_PAGE_SIZE));
+  const current = state.pilePageIndex[type] || 0;
+  const next = Math.max(0, Math.min(totalPages - 1, current + delta));
+  if (next === current) return;
+  state.pilePageIndex[type] = next;
+  renderContextCardChoices();
+}
+
+function renderPokerCardInternals(wrapper, card, isDetail) {
+  wrapper.innerHTML = "";
+
+  const band = document.createElement("div");
+  band.className = "poker-card__band";
+  wrapper.appendChild(band);
+
+  const badge = document.createElement("span");
+  badge.className = "poker-card__badge";
+  badge.textContent = pokerBadgeText(card.type);
+  wrapper.appendChild(badge);
+
+  const title = document.createElement("div");
+  title.className = "poker-card__title";
+  title.textContent = card.title;
+  wrapper.appendChild(title);
+
+  if (!isDetail) return;
+
+  const tags = Array.isArray(card.tags) ? card.tags.slice(0, 3) : [];
+  if (tags.length) {
+    const tagBox = document.createElement("div");
+    tagBox.className = "poker-card__tags";
+    tags.forEach((tag) => {
+      const pill = document.createElement("span");
+      pill.className = "poker-card__tag";
+      pill.textContent = tag;
+      tagBox.appendChild(pill);
+    });
+    wrapper.appendChild(tagBox);
+  }
+
+  const body = document.createElement("div");
+  body.className = "poker-card__body";
+  const text = (card.content || "").trim();
+  body.textContent = text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  wrapper.appendChild(body);
+}
+
+function renderPokerCard(card) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "poker-card";
+  wrapper.dataset.cardId = String(card.id);
+  wrapper.dataset.cardType = card.type;
+  renderPokerCardInternals(wrapper, card, false);
+  return wrapper;
+}
+
+function renderPokerTable(table) {
+  table.innerHTML = "";
+
+  const selected = state.contextCards.filter(
+    (card) => state.selectedContextCardIds.has(card.id));
+
+  if (!selected.length) {
+    return;
+  }
+
+  const visibleLimit = 5;
+  const visible = selected.slice(0, visibleLimit);
+  const overflow = selected.slice(visibleLimit);
+
+  const total = visible.length;
+  const arc = 60;
+  const halfArc = arc / 2;
+  const radius = 180;
+
+  visible.forEach((card, index) => {
+    const ratio = total === 1 ? 0.5 : index / (total - 1);
+    const angle = -halfArc + ratio * arc;
+    const rad = (angle * Math.PI) / 180;
+    const offsetX = Math.sin(rad) * radius;
+    const offsetY = (1 - Math.cos(rad)) * radius * 0.18;
+    const cardEl = buildPlayedCard(card);
+    cardEl.style.transform =
+      `translate(${offsetX}px, ${offsetY}px) rotate(${angle * 0.6}deg)`;
+    table.appendChild(cardEl);
+  });
+
+  if (overflow.length) {
+    const stack = document.createElement("div");
+    stack.className = "poker-table__overflow";
+    stack.setAttribute("aria-label", `还有 ${overflow.length} 张已挂载卡片`);
+    overflow.forEach((card) => stack.appendChild(buildPlayedCard(card)));
+    table.appendChild(stack);
+  }
+}
+
+function buildPlayedCard(card) {
+  const wrapper = renderPokerCard(card);
+  wrapper.classList.add("poker-card--played", "has-hover-tip");
+  wrapper.dataset.tooltip = contextCardHoverText(card);
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "poker-table__remove";
+  remove.dataset.recallId = String(card.id);
+  remove.setAttribute("aria-label", `退回 ${contextCardTypeLabel(card.type)}：${card.title}`);
+  remove.textContent = "×";
+  wrapper.appendChild(remove);
+
+  return wrapper;
+}
+
+function expandPile(type) {
+  if (pokerCollapsing) return;
+  if (state.expandedPileType === type) {
+    collapsePile();
+    return;
+  }
+  state.expandedPileType = type;
+  renderContextCardChoices();
+  animatePileOpening(type);
+}
+
+let pokerCollapsing = false;
+const POKER_OPEN_MS = 340;
+const POKER_COLLAPSE_MS = 260;
+const POKER_COLLAPSE_STAGGER_MS = 10;
+const POKER_SETTLE_MS = 320;
+
+function isReducedMotion() {
+  if (typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function onNextPaint(callback) {
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(callback);
+    return;
+  }
+  window.setTimeout(callback, 16);
+}
+
+function applyMotionFrame(element, frame = {}) {
+  ["transform", "opacity", "filter", "zIndex"].forEach((property) => {
+    if (frame[property] !== undefined) {
+      element.style[property] = String(frame[property]);
+    }
+  });
+}
+
+function runMotion(element, keyframes, options = {}) {
+  if (!element) return null;
+  if (typeof element.animate === "function") {
+    return element.animate(keyframes, options);
+  }
+
+  const frames = Array.isArray(keyframes) ? keyframes : [keyframes];
+  const firstFrame = frames[0] || {};
+  const lastFrame = frames[frames.length - 1] || {};
+  const duration = Number(options.duration) || 0;
+  const delay = Number(options.delay) || 0;
+  const easing = options.easing || "ease";
+  const transitionProperties = ["transform", "opacity", "filter"]
+    .filter((property) => firstFrame[property] !== undefined || lastFrame[property] !== undefined);
+  const previousStyle = {
+    transition: element.style.transition,
+    transform: element.style.transform,
+    opacity: element.style.opacity,
+    filter: element.style.filter,
+    zIndex: element.style.zIndex,
+  };
+  const finishListeners = [];
+  const cancelListeners = [];
+  let cancelled = false;
+  let finishTimer = null;
+
+  function restorePreviousStyle() {
+    element.style.transition = previousStyle.transition;
+    element.style.transform = previousStyle.transform;
+    element.style.opacity = previousStyle.opacity;
+    element.style.filter = previousStyle.filter;
+    element.style.zIndex = previousStyle.zIndex;
+  }
+
+  const delayTimer = window.setTimeout(() => {
+    if (cancelled) return;
+    element.style.transition = "none";
+    applyMotionFrame(element, firstFrame);
+    onNextPaint(() => {
+      if (cancelled) return;
+      element.style.transition = transitionProperties
+        .map((property) => `${property} ${duration}ms ${easing}`)
+        .join(", ");
+      applyMotionFrame(element, lastFrame);
+      finishTimer = window.setTimeout(() => {
+        if (cancelled) return;
+        restorePreviousStyle();
+        finishListeners.forEach((listener) => listener());
+      }, duration + 24);
+    });
+  }, delay);
+
+  return {
+    addEventListener(type, listener) {
+      if (type === "finish") {
+        finishListeners.push(listener);
+      } else if (type === "cancel") {
+        cancelListeners.push(listener);
+      }
+    },
+    cancel() {
+      if (cancelled) return;
+      cancelled = true;
+      window.clearTimeout(delayTimer);
+      if (finishTimer !== null) {
+        window.clearTimeout(finishTimer);
+      }
+      restorePreviousStyle();
+      cancelListeners.forEach((listener) => listener());
+    },
+  };
+}
+
+function animatePileOpening(type) {
+  if (isReducedMotion()) return;
+  onNextPaint(() => {
+    const pile = elements.contextCardChoices?.querySelector(
+      `.poker-pile--expanded[data-poker-pile="${type}"]`);
+    if (!pile) return;
+    pile.classList.add("poker-pile--opening");
+    window.setTimeout(() => {
+      pile.classList.remove("poker-pile--opening");
+    }, POKER_OPEN_MS);
+  });
+}
+
+function collapsePile() {
+  if (state.expandedPileType === null) {
+    return;
+  }
+  if (pokerCollapsing) {
+    return;
+  }
+  const root = elements.contextCardChoices;
+  const fan = root?.querySelector(".poker-pile--expanded .poker-pile__fan");
+  const pile = root?.querySelector(".poker-pile--expanded");
+  const closingType = state.expandedPileType;
+  if (!fan || !pile) {
+    state.expandedPileType = null;
+    renderContextCardChoices();
+    return;
+  }
+
+  if (isReducedMotion()) {
+    state.expandedPileType = null;
+    renderContextCardChoices();
+    return;
+  }
+
+  const fanCards = [...fan.querySelectorAll(".poker-card")];
+  const pileRect = pile.getBoundingClientRect();
+  const targetX = pileRect.left + pileRect.width / 2;
+  const targetY = pileRect.bottom - Math.min(64, pileRect.height / 2);
+  pokerCollapsing = true;
+  pile.classList.add("poker-pile--closing");
+
+  fanCards.forEach((cardEl, index) => {
+    const rect = cardEl.getBoundingClientRect();
+    const dx = targetX - (rect.left + rect.width / 2);
+    const dy = targetY - (rect.top + rect.height / 2);
+    const initialTransform = getComputedStyle(cardEl).transform;
+    runMotion(
+      cardEl,
+      [
+        {
+          transform: initialTransform === "none" ? "translate(0, 0) scale(1)" : initialTransform,
+          opacity: 1,
+          filter: "brightness(1)",
+        },
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(0.58) rotate(0deg)`,
+          opacity: 0,
+          filter: "brightness(1.08)",
+        },
+      ],
+      {
+        duration: POKER_COLLAPSE_MS,
+        delay: index * POKER_COLLAPSE_STAGGER_MS,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        fill: "forwards",
+      },
+    );
+  });
+
+  const totalMs = POKER_COLLAPSE_MS +
+    Math.max(0, fanCards.length - 1) * POKER_COLLAPSE_STAGGER_MS;
+  setTimeout(() => {
+    pokerCollapsing = false;
+    state.expandedPileType = null;
+    renderContextCardChoices();
+    const settledPile = elements.contextCardChoices?.querySelector(
+      `.poker-pile[data-poker-pile="${closingType}"]`);
+    if (settledPile) {
+      settledPile.classList.add("poker-pile--settled");
+      window.setTimeout(() => {
+        settledPile.classList.remove("poker-pile--settled");
+      }, POKER_SETTLE_MS);
+    }
+  }, totalMs);
+}
+
+function enterCardDetail(cardId, cardEl) {
+  const card = state.contextCards.find((c) => c.id === cardId);
+  if (!card || !cardEl) return;
+  state.hoveredCardId = cardId;
+  cardEl.classList.add("poker-card--detail");
+  renderPokerCardInternals(cardEl, card, true);
+}
+
+function leaveCardDetail(cardId, cardEl) {
+  const card = state.contextCards.find((c) => c.id === cardId);
+  if (!card || !cardEl) return;
+  if (state.hoveredCardId === cardId) {
+    state.hoveredCardId = null;
+  }
+  cardEl.classList.remove("poker-card--detail");
+  renderPokerCardInternals(cardEl, card, false);
+}
+
+function playCard(cardId) {
+  if (state.selectedContextCardIds.has(cardId)) {
+    return;
+  }
+  const fromRect = captureCardRect(cardId, "hand");
+  state.selectedContextCardIds.add(cardId);
+  renderContextCardChoices();
+  renderContextCards();
+  hideOptimizeBox();
+  setWorkflowStep("compose");
+  updatePromptAssistant();
+  if (fromRect) {
+    const toEl = elements.contextCardChoices.querySelector(
+      `.poker-table .poker-card[data-card-id="${cardId}"]`);
+    if (toEl) flipAnimate(fromRect, toEl, { variant: "deal" });
+  }
+}
+
+function recallCard(cardId) {
+  if (!state.selectedContextCardIds.has(cardId)) {
+    return;
+  }
+  const fromRect = captureCardRect(cardId, "table");
+  const card = state.contextCards.find((c) => c.id === cardId);
+  state.selectedContextCardIds.delete(cardId);
+  renderContextCardChoices();
+  renderContextCards();
+  hideOptimizeBox();
+  setWorkflowStep("compose");
+  updatePromptAssistant();
+  if (fromRect && card) {
+    const pileEl = elements.contextCardChoices.querySelector(
+      `.poker-pile[data-poker-pile="${card.type}"]`);
+    if (pileEl) flipAnimate(fromRect, pileEl, { variant: "recall" });
+  }
 }
 
 function renderTemplates() {
-  const templates = state.templates.filter(matchesKeyword);
+  const templates = state.templates;
+  elements.templateListCount.textContent = `${templates.length} 个模板`;
 
   if (!templates.length) {
     elements.templateList.innerHTML = '<div class="empty-state">暂无模板。试着新建一个常用任务模板。</div>';
@@ -373,28 +1628,29 @@ function renderTemplates() {
     .join("");
 }
 
-function renderSnippets() {
-  const snippets = state.snippets.filter(matchesKeyword);
+function renderContextCards() {
+  const contextCards = state.contextCards;
+  elements.contextCardListCount.textContent = `${contextCards.length} 个卡片`;
 
-  if (!snippets.length) {
-    elements.snippetList.innerHTML = '<div class="empty-state">暂无知识片段。可以先保存一条写作规范或项目背景。</div>';
+  if (!contextCards.length) {
+    elements.contextCardList.innerHTML = '<div class="empty-state">暂无上下文卡片。可以先保存一条写作规范或项目背景。</div>';
     return;
   }
 
-  elements.snippetList.innerHTML = snippets
+  elements.contextCardList.innerHTML = contextCards
     .map((item) => `
       <article class="resource-card">
         <div class="resource-row">
           <div>
             <div class="resource-title">${escapeHtml(item.title)}</div>
-            <div class="resource-meta">${escapeHtml(item.source || "无来源")} · ${escapeHtml(item.content.slice(0, 94))}</div>
+            <div class="resource-meta">${escapeHtml(contextCardTypeLabel(item.type))} / ${escapeHtml(item.content.slice(0, 94))}</div>
           </div>
           <div class="resource-actions">
-            <button class="tiny-button secondary-button" type="button" data-toggle-snippet-id="${item.id}">
-              ${state.selectedSnippetIds.has(item.id) ? "取消选择" : "加入生成"}
+            <button class="tiny-button secondary-button" type="button" data-toggle-context-card-id="${item.id}">
+              ${state.selectedContextCardIds.has(item.id) ? "取消选择" : "加入生成"}
             </button>
-            <button class="tiny-button secondary-button" type="button" data-edit-snippet-id="${item.id}">编辑</button>
-            <button class="delete-button" type="button" data-delete-snippet-id="${item.id}">删除</button>
+            <button class="tiny-button secondary-button" type="button" data-edit-context-card-id="${item.id}">编辑</button>
+            <button class="delete-button" type="button" data-delete-context-card-id="${item.id}">删除</button>
           </div>
         </div>
         <div class="tag-row">${renderTags(item.tags)}</div>
@@ -406,7 +1662,7 @@ function renderSnippets() {
 
 function historyCard(item) {
   const preview = item.final_prompt.length > 170
-    ? `${item.final_prompt.slice(0, 170)}...`
+    ? `${item.final_prompt.slice(0, 170)}…`
     : item.final_prompt;
 
   return `
@@ -428,7 +1684,7 @@ function historyCard(item) {
 }
 
 function renderHistory() {
-  const history = state.history.filter(matchesKeyword);
+  const history = state.history;
   const recent = history.slice(0, 5);
 
   elements.recentHistoryList.innerHTML = recent.length
@@ -437,30 +1693,31 @@ function renderHistory() {
 
   elements.historyList.innerHTML = history.length
     ? history.map(historyCard).join("")
-    : '<div class="empty-state">暂无历史记录。生成 Prompt 后会自动保存到这里。</div>';
+    : '<div class="empty-state">暂无历史记录。保存预生成 Prompt 后会出现在这里。</div>';
 }
 
 function renderAll() {
   renderStats();
   renderTemplateSelect();
-  renderSnippetChoices();
+  renderContextCardChoices();
   renderTemplates();
-  renderSnippets();
+  renderContextCards();
   renderHistory();
+  updateWorkSurface();
 }
 
 async function loadData() {
   setApiStatus("连接中", "pending");
 
   try {
-    const [templates, snippets, history] = await Promise.all([
+    const [templates, contextCards, history] = await Promise.all([
       requestJson("/api/templates"),
-      requestJson("/api/snippets"),
+      requestJson("/api/context-cards"),
       requestJson("/api/history?limit=50"),
     ]);
 
     state.templates = templates;
-    state.snippets = snippets;
+    state.contextCards = contextCards;
     state.history = history;
     syncSelectedTemplate();
     renderAll();
@@ -469,7 +1726,7 @@ async function loadData() {
   } catch (error) {
     if (!state.templates.length) {
       state.templates = fallbackTemplates;
-      state.snippets = fallbackSnippets;
+      state.contextCards = fallbackContextCards;
       state.history = [];
       syncSelectedTemplate();
     }
@@ -496,37 +1753,68 @@ function collectVariables() {
 
   inputs.forEach((input) => {
     const name = input.dataset.variableName;
-    const shouldUseMainInput = /输入|内容|主题|关键词|问题|任务/.test(name);
-    variables[name] = input.value.trim() || (shouldUseMainInput ? elements.quickKeyword.value.trim() : "");
+    variables[name] = input.value.trim();
   });
 
   return variables;
 }
 
-function collectSnippetIds() {
-  return Array.from(state.selectedSnippetIds);
+function getVariableStats() {
+  const template = getSelectedTemplate();
+  const names = template ? extractVariables(template.content) : [];
+  const variables = collectVariables();
+  const completed = names.filter((name) => String(variables[name] || "").trim()).length;
+
+  return {
+    total: names.length,
+    completed,
+    ratio: names.length ? completed / names.length : 1,
+  };
 }
 
-function updateSelectedSnippetCount() {
-  elements.selectedSnippetCount.textContent = `已选 ${state.selectedSnippetIds.size} 个`;
+function collectContextCardIds() {
+  return Array.from(state.selectedContextCardIds);
 }
 
-function buildLocalPrompt(template, variables, snippetIds) {
-  let prompt = template.content;
+function updateSelectedContextCardCount() {
+  elements.selectedContextCardCount.textContent = `已选 ${state.selectedContextCardIds.size} 个`;
+}
 
-  Object.entries(variables).forEach(([name, value]) => {
-    prompt = prompt.replaceAll(`{${name}}`, value || elements.quickKeyword.value.trim() || `{${name}}`);
-  });
+function updatePromptAssistant() {
+  const variableStats = getVariableStats();
+  const selectedCount = state.selectedContextCardIds.size;
 
-  const selectedSnippets = state.snippets.filter((item) => snippetIds.includes(item.id));
-  if (!selectedSnippets.length) {
-    return prompt;
+  if (elements.finalPrompt.value.trim()) {
+    elements.promptHint.textContent = `当前预生成 Prompt ${elements.finalPrompt.value.length} 个字符，可复制、优化或送去 AI。`;
+    setCatMood("Prompt 已就绪，可以继续优化或生成。", "happy");
+  } else if (variableStats.total && variableStats.ratio < 1) {
+    elements.promptHint.textContent = `变量 ${variableStats.completed}/${variableStats.total}，已选卡片 ${selectedCount}。`;
+    setCatMood("补齐变量后可以先预览 Prompt。");
+  } else if (state.selectedContextCardIds.size === 0) {
+    elements.promptHint.textContent = "可先预览 Prompt，也可以选择上下文卡片增加上下文。";
+    setCatMood("材料已基本就绪，可以预览。");
+  } else {
+    elements.promptHint.textContent = `已选 ${selectedCount} 个上下文卡片，可预览 Prompt。`;
+    setCatMood("上下文已挂载，可以预览。");
   }
-
-  return `${prompt}\n\n参考知识片段：\n${selectedSnippets.map((item) => `- ${item.title}\n${item.content}`).join("\n\n")}`;
 }
 
-async function generatePrompt() {
+function updateAnswerStats() {
+  elements.answerStats.textContent = `${elements.llmAnswer.value.length} 字符`;
+}
+
+function updateWorkSurface() {
+  updatePromptAssistant();
+  updateAnswerStats();
+}
+
+function hideOptimizeBox() {
+  elements.optimizeBox.classList.add("is-hidden");
+  elements.optimizedPrompt.value = "";
+  elements.optimizeHint.textContent = "由 LLM 优化，不会自动覆盖原 Prompt。";
+}
+
+async function previewPrompt() {
   const template = getSelectedTemplate();
   if (!template) {
     showToast("请先选择模板", true);
@@ -536,13 +1824,14 @@ async function generatePrompt() {
   const payload = {
     template_id: template.id,
     variables: collectVariables(),
-    snippet_ids: collectSnippetIds(),
+    context_card_ids: collectContextCardIds(),
     mode: "rule",
   };
 
   try {
-    elements.generatePromptButton.disabled = true;
-    elements.promptHint.textContent = "正在生成 Prompt...";
+    elements.previewPromptButton.disabled = true;
+    setWorkflowStep("preview");
+    elements.promptHint.textContent = "正在预览预生成 Prompt…";
 
     const result = await requestJson("/api/generate", {
       method: "POST",
@@ -551,20 +1840,112 @@ async function generatePrompt() {
 
     elements.finalPrompt.value = result.final_prompt;
     elements.aiPromptInput.value = result.final_prompt;
-    elements.promptHint.textContent = result.missing_variables.length
-      ? `未填写变量：${result.missing_variables.join("、")}`
-      : `生成成功，历史 ID：${result.history_id}`;
-    await loadHistory();
-    showToast("Prompt 已生成");
+    hideOptimizeBox();
+
+    const missingVariables = result.missing_variables || [];
+    elements.promptHint.textContent = missingVariables.length
+      ? `预生成 Prompt 已更新，未填写变量：${missingVariables.join("、")}。可继续编辑或保存当前草稿。`
+      : "预生成 Prompt 已更新，可优化、复制、送去 AI 或保存到历史。";
+    setCatMood("预生成 Prompt 已更新，保存由你决定。", "happy");
+    showToast("预生成 Prompt 已更新");
+    return result.final_prompt;
   } catch (error) {
-    const localPrompt = buildLocalPrompt(template, payload.variables, payload.snippet_ids);
-    elements.finalPrompt.value = localPrompt;
-    elements.aiPromptInput.value = localPrompt;
-    elements.promptHint.textContent = "后端生成失败，当前显示本地拼接结果。";
+    setWorkflowStep("compose");
+    elements.promptHint.textContent = "预览失败，请稍后再试。";
+    showToast(error.message, true);
+    return "";
+  } finally {
+    elements.previewPromptButton.disabled = false;
+  }
+}
+
+async function saveCurrentPrompt() {
+  const template = getSelectedTemplate();
+  const finalPrompt = elements.finalPrompt.value.trim();
+
+  if (!template) {
+    showToast("请先选择模板", true);
+    return;
+  }
+
+  if (!finalPrompt) {
+    showToast("暂无可保存的预生成 Prompt", true);
+    return;
+  }
+
+  try {
+    elements.savePromptButton.disabled = true;
+    setWorkflowStep("save");
+    elements.promptHint.textContent = "正在保存到历史…";
+
+    const history = await requestJson("/api/history", {
+      method: "POST",
+      body: JSON.stringify({
+        template_id: template.id,
+        variables: collectVariables(),
+        context_card_ids: collectContextCardIds(),
+        final_prompt: finalPrompt,
+      }),
+    });
+
+    await loadHistory();
+    elements.promptHint.textContent = `已保存到历史 ID：${history.id}。`;
+    setCatMood("这版预生成 Prompt 已收进历史。", "happy");
+    showToast("预生成 Prompt 已保存到历史");
+  } catch (error) {
     showToast(error.message, true);
   } finally {
-    elements.generatePromptButton.disabled = false;
+    elements.savePromptButton.disabled = false;
   }
+}
+
+async function optimizePrompt() {
+  const prompt = elements.finalPrompt.value.trim() || await previewPrompt();
+  if (!prompt.trim()) {
+    showToast("暂无可优化的 Prompt", true);
+    return;
+  }
+
+  try {
+    elements.optimizePromptButton.disabled = true;
+    setWorkflowStep("optimize");
+    elements.optimizeHint.textContent = "正在调用 LLM 优化 Prompt…";
+    elements.optimizeBox.classList.remove("is-hidden");
+    setCatMood("正在把预生成 Prompt 打磨得更清楚。", "working");
+
+    const result = await requestJson("/api/llm/optimize-prompt", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt,
+        model: elements.llmModel.value || "deepseek-v4-flash",
+        temperature: 0.2,
+      }),
+    });
+
+    elements.optimizedPrompt.value = result.optimized_prompt;
+    elements.optimizeHint.textContent = `优化完成，模型：${result.model}`;
+    setCatMood("优化稿已准备好，可以采用或复制。", "happy");
+    showToast("预生成 Prompt 优化完成");
+  } catch (error) {
+    elements.optimizeHint.textContent = error.message;
+    showToast(error.message, true);
+  } finally {
+    elements.optimizePromptButton.disabled = false;
+  }
+}
+
+function applyOptimizedPrompt() {
+  const optimized = elements.optimizedPrompt.value.trim();
+  if (!optimized) {
+    showToast("暂无优化稿可采用", true);
+    return;
+  }
+
+  elements.finalPrompt.value = optimized;
+  elements.aiPromptInput.value = optimized;
+  setWorkflowStep("save");
+  elements.promptHint.textContent = "已采用优化稿，可送去 AI、复制或保存。";
+  setCatMood("优化稿已放入工作台。", "happy");
 }
 
 async function copyText(text, message) {
@@ -595,12 +1976,14 @@ function resetTemplateForm() {
   elements.cancelTemplateEditButton.classList.add("is-hidden");
 }
 
-function resetSnippetForm() {
-  state.editingSnippetId = null;
-  elements.snippetForm.reset();
-  elements.snippetFormTitle.textContent = "新增知识片段";
-  elements.saveSnippetButton.textContent = "保存片段";
-  elements.cancelSnippetEditButton.classList.add("is-hidden");
+function resetContextCardForm() {
+  state.editingContextCardId = null;
+  elements.contextCardForm.reset();
+  elements.contextCardType.value = "background";
+  refreshCustomSelect(elements.contextCardType);
+  elements.contextCardFormTitle.textContent = "新增上下文卡片";
+  elements.saveContextCardButton.textContent = "保存卡片";
+  elements.cancelContextCardEditButton.classList.add("is-hidden");
 }
 
 async function saveTemplate(event) {
@@ -633,18 +2016,18 @@ async function saveTemplate(event) {
   }
 }
 
-async function saveSnippet(event) {
+async function saveContextCard(event) {
   event.preventDefault();
 
   const payload = {
-    title: elements.snippetTitle.value,
-    tags: parseTags(elements.snippetTags.value),
-    source: elements.snippetSource.value || null,
-    content: elements.snippetContent.value,
+    type: elements.contextCardType.value,
+    title: elements.contextCardTitle.value,
+    tags: parseTags(elements.contextCardTags.value),
+    content: elements.contextCardContent.value,
   };
 
-  const isEditing = state.editingSnippetId !== null;
-  const url = isEditing ? `/api/snippets/${state.editingSnippetId}` : "/api/snippets";
+  const isEditing = state.editingContextCardId !== null;
+  const url = isEditing ? `/api/context-cards/${state.editingContextCardId}` : "/api/context-cards";
   const method = isEditing ? "PUT" : "POST";
 
   try {
@@ -653,10 +2036,10 @@ async function saveSnippet(event) {
       body: JSON.stringify(payload),
     });
 
-    state.selectedSnippetIds.add(saved.id);
-    resetSnippetForm();
+    state.selectedContextCardIds.add(saved.id);
+    resetContextCardForm();
     await loadData();
-    showToast(isEditing ? "知识片段已更新" : "知识片段已保存");
+    showToast(isEditing ? "上下文卡片已更新" : "上下文卡片已保存");
   } catch (error) {
     showToast(error.message, true);
   }
@@ -681,22 +2064,23 @@ function editTemplate(templateId) {
   elements.templateTitle.focus();
 }
 
-function editSnippet(snippetId) {
-  const snippet = state.snippets.find((item) => item.id === snippetId);
-  if (!snippet) {
+function editContextCard(contextCardId) {
+  const contextCard = state.contextCards.find((item) => item.id === contextCardId);
+  if (!contextCard) {
     return;
   }
 
-  state.editingSnippetId = snippetId;
-  elements.snippetTitle.value = snippet.title;
-  elements.snippetTags.value = (snippet.tags || []).join(", ");
-  elements.snippetSource.value = snippet.source || "";
-  elements.snippetContent.value = snippet.content;
-  elements.snippetFormTitle.textContent = "编辑知识片段";
-  elements.saveSnippetButton.textContent = "更新片段";
-  elements.cancelSnippetEditButton.classList.remove("is-hidden");
-  switchView("snippets");
-  elements.snippetTitle.focus();
+  state.editingContextCardId = contextCardId;
+  elements.contextCardType.value = contextCard.type || "background";
+  refreshCustomSelect(elements.contextCardType);
+  elements.contextCardTitle.value = contextCard.title;
+  elements.contextCardTags.value = (contextCard.tags || []).join(", ");
+  elements.contextCardContent.value = contextCard.content;
+  elements.contextCardFormTitle.textContent = "编辑上下文卡片";
+  elements.saveContextCardButton.textContent = "更新卡片";
+  elements.cancelContextCardEditButton.classList.remove("is-hidden");
+  switchView("contextCards");
+  elements.contextCardTitle.focus();
 }
 
 async function deleteItem(url, successMessage, fallbackAction) {
@@ -740,7 +2124,9 @@ async function askLlm() {
   try {
     elements.askLlmButton.disabled = true;
     elements.llmAnswer.value = "";
-    elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接...`;
+    updateAnswerStats();
+    setTerminalStatus("RUN", 18, true);
+    elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接…`;
 
     const response = await fetch("/api/llm/answer/stream", {
       method: "POST",
@@ -758,8 +2144,8 @@ async function askLlm() {
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let answerLength = 0;
-    elements.llmHint.textContent = `模型：${payload.model}，正在流式输出...`;
+    setTerminalStatus("READ", 62, true);
+    elements.llmHint.textContent = `模型：${payload.model}，正在流式输出…`;
 
     while (true) {
       const { value, done } = await reader.read();
@@ -769,19 +2155,21 @@ async function askLlm() {
 
       const chunk = decoder.decode(value, { stream: true });
       elements.llmAnswer.value += chunk;
-      answerLength += chunk.length;
+      updateAnswerStats();
       elements.llmAnswer.scrollTop = elements.llmAnswer.scrollHeight;
     }
 
     const tail = decoder.decode();
     if (tail) {
       elements.llmAnswer.value += tail;
-      answerLength += tail.length;
+      updateAnswerStats();
     }
 
-    elements.llmHint.textContent = `模型：${payload.model}，输出完成，共 ${answerLength} 个字符`;
+    setTerminalStatus("DONE", 100);
+    elements.llmHint.textContent = `模型：${payload.model}，输出完成。`;
     showToast("AI 回答已完成");
   } catch (error) {
+    setTerminalStatus("ERR", 100, false, true);
     elements.llmHint.textContent = error.message;
     showToast("AI 生成失败，请检查 API Key 或网络", true);
   } finally {
@@ -789,7 +2177,34 @@ async function askLlm() {
   }
 }
 
+async function saveAnswerAsContextCard() {
+  const content = elements.llmAnswer.value.trim();
+  if (!content) {
+    showToast("暂无可保存的回答", true);
+    return;
+  }
+
+  try {
+    await requestJson("/api/context-cards", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "example",
+        title: `AI 回答 ${dateTimeFormatter.format(new Date()).replace(/\//g, "-")}`,
+        tags: ["AI回答"],
+        content,
+      }),
+    });
+    await loadData();
+    switchView("contextCards");
+    showToast("AI 回答已存为卡片");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
 function bindEvents() {
+  initializeCustomSelects();
+
   elements.mobileMenuButton.addEventListener("click", () => {
     document.body.classList.add("sidebar-open");
   });
@@ -807,52 +2222,214 @@ function bindEvents() {
 
   document.querySelector("[data-focus-builder]").addEventListener("click", () => {
     document.querySelector("#builderArea").scrollIntoView({ behavior: "smooth", block: "start" });
-    elements.quickKeyword.focus();
+    const firstVariableInput = elements.variableFields.querySelector("[data-variable-name]");
+    (firstVariableInput || elements.quickTemplateSelect).focus();
   });
 
   elements.refreshButton.addEventListener("click", loadData);
-  elements.globalSearch.addEventListener("input", renderAll);
-  elements.quickKeyword.addEventListener("input", () => {
-    if (!elements.finalPrompt.value) {
-      elements.promptHint.textContent = "填写核心输入后即可生成 Prompt。";
-    }
+  elements.variableFields.addEventListener("input", () => {
+    setWorkflowStep("compose");
+    updatePromptAssistant();
   });
 
   elements.quickTemplateSelect.addEventListener("change", () => {
     state.selectedTemplateId = Number(elements.quickTemplateSelect.value);
+    refreshCustomSelect(elements.quickTemplateSelect);
     renderVariables();
     renderTemplates();
+    hideOptimizeBox();
+    setWorkflowStep("compose");
+    updatePromptAssistant();
   });
 
-  elements.snippetChoices.addEventListener("change", (event) => {
-    const checkbox = event.target.closest("[data-snippet-choice]");
-    if (!checkbox) {
+  elements.contextCardChoices.addEventListener("click", (event) => {
+    const removeButton = event.target.closest(".poker-table__remove");
+    if (removeButton) {
+      event.stopPropagation();
+      recallCard(Number(removeButton.dataset.recallId));
       return;
     }
 
-    const id = Number(checkbox.value);
-    if (checkbox.checked) {
-      state.selectedSnippetIds.add(id);
-    } else {
-      state.selectedSnippetIds.delete(id);
+    const pagerButton = event.target.closest(".poker-pile__pager-button");
+    if (pagerButton) {
+      event.stopPropagation();
+      const pager = pagerButton.closest("[data-poker-pager]");
+      const dir = Number(pagerButton.dataset.pokerPagerDir);
+      if (pager && dir) {
+        pagePile(pager.dataset.pokerPager, dir);
+      }
+      return;
     }
 
-    updateSelectedSnippetCount();
-    renderSnippets();
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (fanCard) {
+      event.stopPropagation();
+      if (dragController.active) return;
+      playCard(Number(fanCard.dataset.cardId));
+      return;
+    }
+
+    const fan = event.target.closest(".poker-pile__fan");
+    if (fan) {
+      const expandedPile = fan.closest(".poker-pile--expanded");
+      if (expandedPile) {
+        collapsePile();
+      }
+      return;
+    }
+
+    const pile = event.target.closest(".poker-pile");
+    if (pile) {
+      expandPile(pile.dataset.pokerPile);
+    }
   });
 
-  elements.generatePromptButton.addEventListener("click", generatePrompt);
-  elements.copyPromptButton.addEventListener("click", () => copyText(elements.finalPrompt.value, "Prompt 已复制"));
+  elements.contextCardChoices.addEventListener("keydown", (event) => {
+    const pile = event.target.closest(".poker-pile");
+    if (!pile) return;
+    const type = pile.dataset.pokerPile;
+
+    if (event.target.matches(".poker-pile") && !pile.classList.contains("poker-pile--expanded")) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const piles = [...elements.contextCardChoices.querySelectorAll(".poker-pile")];
+        const idx = piles.indexOf(pile);
+        const nextIdx = (idx + (event.key === "ArrowRight" ? 1 : -1) + piles.length) % piles.length;
+        piles[nextIdx].focus();
+      }
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        expandPile(type);
+        onNextPaint(() => {
+          const firstCard = elements.contextCardChoices.querySelector(
+            `.poker-pile[data-poker-pile="${type}"] .poker-pile__fan .poker-card`);
+          firstCard?.focus();
+        });
+      }
+      return;
+    }
+
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (fanCard) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        playCard(Number(fanCard.dataset.cardId));
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const cards = [...pile.querySelectorAll(".poker-pile__fan .poker-card")];
+        const idx = cards.indexOf(fanCard);
+        const nextIdx = (idx + (event.key === "ArrowRight" ? 1 : -1) + cards.length) % cards.length;
+        cards[nextIdx].focus();
+      }
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    if (state.expandedPileType === null) return;
+    if (event.target.closest(".poker-pile")) return;
+    if (event.target.closest(".poker-table")) return;
+    collapsePile();
+  });
+
+  elements.contextCardChoices.addEventListener("mouseover", (event) => {
+    if (state.draggingCardId !== null) return;
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    const id = Number(cardEl.dataset.cardId);
+    if (state.hoveredCardId === id) return;
+    enterCardDetail(id, cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("mouseout", (event) => {
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    const related = event.relatedTarget;
+    if (related && cardEl.contains(related)) return;
+    const id = Number(cardEl.dataset.cardId);
+    if (state.hoveredCardId !== id) return;
+    leaveCardDetail(id, cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("focusin", (event) => {
+    if (state.draggingCardId !== null) return;
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    enterCardDetail(Number(cardEl.dataset.cardId), cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("focusout", (event) => {
+    const cardEl = event.target.closest(".poker-pile__fan .poker-card");
+    if (!cardEl) return;
+    leaveCardDetail(Number(cardEl.dataset.cardId), cardEl);
+  });
+
+  elements.contextCardChoices.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    if (event.target.closest(".poker-table__remove")) return;
+    const fanCard = event.target.closest(".poker-pile__fan .poker-card");
+    if (fanCard) {
+      dragBegin(event, fanCard, "hand");
+      return;
+    }
+    const tableCard = event.target.closest(".poker-table .poker-card");
+    if (tableCard) {
+      dragBegin(event, tableCard, "table");
+    }
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    if (!dragController.active) {
+      const dx = event.clientX - dragController.startX;
+      const dy = event.clientY - dragController.startY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const elapsed = performance.now() - dragController.startTime;
+      const isTouch = event.pointerType === "touch";
+      const minMs = isTouch ? DRAG_THRESHOLD_MS_TOUCH : DRAG_THRESHOLD_MS_MOUSE;
+      const trigger =
+        (!isTouch && dist >= DRAG_THRESHOLD_PX) ||
+        (elapsed >= minMs && dist >= DRAG_MIN_MOVE_PX);
+      if (!trigger) return;
+      dragActivate(event);
+    }
+    dragMove(event);
+  });
+
+  document.addEventListener("pointerup", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    dragEnd(event);
+  });
+
+  document.addEventListener("pointercancel", (event) => {
+    if (dragController.pointerId === null) return;
+    if (event.pointerId !== dragController.pointerId) return;
+    dragReturnHome();
+  });
+
+  window.addEventListener("blur", () => {
+    if (dragController.pointerId !== null) dragReturnHome();
+  });
+
+  elements.previewPromptButton.addEventListener("click", previewPrompt);
+  elements.savePromptButton.addEventListener("click", saveCurrentPrompt);
+  elements.optimizePromptButton.addEventListener("click", optimizePrompt);
+  elements.applyOptimizedButton.addEventListener("click", applyOptimizedPrompt);
+  elements.copyOptimizedButton.addEventListener("click", () => copyText(elements.optimizedPrompt.value, "优化稿已复制"));
+  elements.copyPromptButton.addEventListener("click", () => copyText(elements.finalPrompt.value, "预生成 Prompt 已复制"));
   elements.pushToAiButton.addEventListener("click", () => {
     elements.aiPromptInput.value = elements.finalPrompt.value;
+    setWorkflowStep("save");
     switchView("ai");
-    showToast("Prompt 已同步到 AI 控制台");
+    showToast("预生成 Prompt 已同步到 AI 控制台");
   });
 
   elements.templateForm.addEventListener("submit", saveTemplate);
   elements.cancelTemplateEditButton.addEventListener("click", resetTemplateForm);
-  elements.snippetForm.addEventListener("submit", saveSnippet);
-  elements.cancelSnippetEditButton.addEventListener("click", resetSnippetForm);
+  elements.contextCardForm.addEventListener("submit", saveContextCard);
+  elements.cancelContextCardEditButton.addEventListener("click", resetContextCardForm);
 
   elements.templateList.addEventListener("click", (event) => {
     const useButton = event.target.closest("[data-use-template-id]");
@@ -889,33 +2466,33 @@ function bindEvents() {
     }
   });
 
-  elements.snippetList.addEventListener("click", (event) => {
-    const toggleButton = event.target.closest("[data-toggle-snippet-id]");
-    const editButton = event.target.closest("[data-edit-snippet-id]");
-    const deleteButton = event.target.closest("[data-delete-snippet-id]");
+  elements.contextCardList.addEventListener("click", (event) => {
+    const toggleButton = event.target.closest("[data-toggle-context-card-id]");
+    const editButton = event.target.closest("[data-edit-context-card-id]");
+    const deleteButton = event.target.closest("[data-delete-context-card-id]");
 
     if (toggleButton) {
-      const snippetId = Number(toggleButton.dataset.toggleSnippetId);
-      if (state.selectedSnippetIds.has(snippetId)) {
-        state.selectedSnippetIds.delete(snippetId);
+      const contextCardId = Number(toggleButton.dataset.toggleContextCardId);
+      if (state.selectedContextCardIds.has(contextCardId)) {
+        state.selectedContextCardIds.delete(contextCardId);
       } else {
-        state.selectedSnippetIds.add(snippetId);
+        state.selectedContextCardIds.add(contextCardId);
       }
-      renderSnippetChoices();
-      renderSnippets();
+      renderContextCardChoices();
+      renderContextCards();
       return;
     }
 
     if (editButton) {
-      editSnippet(Number(editButton.dataset.editSnippetId));
+      editContextCard(Number(editButton.dataset.editContextCardId));
       return;
     }
 
     if (deleteButton) {
-      const snippetId = Number(deleteButton.dataset.deleteSnippetId);
-      deleteItem(`/api/snippets/${snippetId}`, "知识片段已删除", () => {
-        state.snippets = state.snippets.filter((item) => item.id !== snippetId);
-        state.selectedSnippetIds.delete(snippetId);
+      const contextCardId = Number(deleteButton.dataset.deleteContextCardId);
+      deleteItem(`/api/context-cards/${contextCardId}`, "上下文卡片已删除", () => {
+        state.contextCards = state.contextCards.filter((item) => item.id !== contextCardId);
+        state.selectedContextCardIds.delete(contextCardId);
       });
     }
   });
@@ -959,13 +2536,313 @@ function bindEvents() {
   });
   elements.askLlmButton.addEventListener("click", askLlm);
   elements.copyAnswerButton.addEventListener("click", () => copyText(elements.llmAnswer.value, "AI 回答已复制"));
+  elements.saveAnswerContextCardButton.addEventListener("click", saveAnswerAsContextCard);
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".custom-select")) {
+      closeCustomSelects();
+    }
+  });
+
+  document.addEventListener("pointerover", (event) => {
+    const target = event.target.closest(".has-hover-tip");
+    if (!target) {
+      return;
+    }
+    if (target.closest(".custom-select")) {
+      return;
+    }
+    showHoverTooltip(target, event);
+  });
+
+  document.addEventListener("pointermove", (event) => {
+    moveHoverTooltip(event);
+  });
+
+  document.addEventListener("pointerout", (event) => {
+    const target = event.target.closest(".has-hover-tip");
+    if (target && !target.contains(event.relatedTarget)) {
+      hideHoverTooltip();
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const target = event.target.closest(".has-hover-tip");
+    if (!target) {
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    showHoverTooltip(target, {
+      clientX: rect.left + Math.min(rect.width / 2, 220),
+      clientY: rect.top + 12,
+    });
+  });
+
+  document.addEventListener("focusout", (event) => {
+    const target = event.target.closest(".has-hover-tip");
+    if (target && !target.contains(event.relatedTarget)) {
+      hideHoverTooltip();
+    }
+  });
+
+  document.addEventListener("scroll", (event) => {
+    if (event.target.closest && event.target.closest(".custom-select-menu")) {
+      return;
+    }
+    closeCustomSelects();
+    hideHoverTooltip();
+  }, true);
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       document.body.classList.remove("sidebar-open");
+      closeCustomSelects();
+      hideHoverTooltip();
+      collapsePile();
     }
   });
 }
 
 bindEvents();
 loadData();
+
+/* ===== FLIP 飞行框架 ===== */
+const FLIP_DEFAULTS = {
+  duration: 420,
+  easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  variant: "deal",
+};
+
+function flipAnimate(fromRect, toEl, options = {}) {
+  if (!toEl || !fromRect) return null;
+  if (isReducedMotion()) {
+    return null;
+  }
+  const opts = { ...FLIP_DEFAULTS, ...options };
+  const toRect = toEl.getBoundingClientRect();
+  const dx = fromRect.left - toRect.left;
+  const dy = fromRect.top - toRect.top;
+  const sx = fromRect.width === 0 ? 1 : fromRect.width / toRect.width;
+  const sy = fromRect.height === 0 ? 1 : fromRect.height / toRect.height;
+  const baseTransform = toEl.style.transform || "";
+  const finalTransform = baseTransform || "translate(0, 0) scale(1)";
+  const startScale = opts.variant === "recall" ? 0.9 : 0.98;
+  const landingScale = opts.variant === "recall" ? 0.94 : 1.08;
+
+  if (toEl._flipAnim) {
+    toEl._flipAnim.cancel();
+  }
+
+  toEl.dataset.flipActive = "true";
+  const anim = runMotion(
+    toEl,
+    [
+      {
+        offset: 0,
+        transform: `translate(${dx}px, ${dy}px) scale(${sx * startScale}, ${sy * startScale}) ${baseTransform}`.trim(),
+        opacity: 0.68,
+        filter: "brightness(1.12) saturate(1.08)",
+        zIndex: 220,
+      },
+      {
+        offset: 0.72,
+        transform: `translate(${dx * 0.12}px, ${dy * 0.12}px) scale(${landingScale}) ${baseTransform}`.trim(),
+        opacity: 1,
+        filter: "brightness(1.18) saturate(1.08)",
+        zIndex: 220,
+      },
+      {
+        offset: 1,
+        transform: finalTransform,
+        opacity: 1,
+        filter: "brightness(1) saturate(1)",
+        zIndex: 220,
+      },
+    ],
+    { duration: opts.duration, easing: opts.easing, fill: "both" },
+  );
+  toEl._flipAnim = anim;
+  anim.addEventListener("finish", () => {
+    if (toEl._flipAnim === anim) {
+      anim.cancel();
+      toEl._flipAnim = null;
+      delete toEl.dataset.flipActive;
+    }
+    if (typeof opts.onFinish === "function") opts.onFinish();
+  });
+  anim.addEventListener("cancel", () => {
+    if (toEl._flipAnim === anim) {
+      toEl._flipAnim = null;
+    }
+    delete toEl.dataset.flipActive;
+  });
+  return anim;
+}
+
+function captureCardRect(cardId, zone = "any") {
+  const root = elements.contextCardChoices;
+  let selector;
+  if (zone === "hand") {
+    selector = `.poker-pile__fan .poker-card[data-card-id="${cardId}"]`;
+  } else if (zone === "table") {
+    selector = `.poker-table .poker-card[data-card-id="${cardId}"]`;
+  } else {
+    selector = `.poker-card[data-card-id="${cardId}"]`;
+  }
+  const el = root?.querySelector(selector);
+  return el ? el.getBoundingClientRect() : null;
+}
+
+/* ===== 拖拽控制器 ===== */
+const DRAG_THRESHOLD_PX = 6;
+const DRAG_THRESHOLD_MS_MOUSE = 100;
+const DRAG_THRESHOLD_MS_TOUCH = 200;
+const DRAG_MIN_MOVE_PX = 2;
+
+const dragController = {
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  startTime: 0,
+  cardId: null,
+  fromZone: null,
+  sourceEl: null,
+  cloneEl: null,
+  cloneOffsetX: 0,
+  cloneOffsetY: 0,
+  active: false,
+};
+
+function dragReset() {
+  if (dragController.cloneEl && dragController.cloneEl.parentNode) {
+    dragController.cloneEl.parentNode.removeChild(dragController.cloneEl);
+  }
+  if (dragController.sourceEl) {
+    dragController.sourceEl.classList.remove("poker-card--ghost");
+  }
+  document.body.classList.remove("poker-is-dragging");
+  const root = elements.contextCardChoices;
+  const table = root?.querySelector(".poker-table");
+  if (table) table.classList.remove("poker-table--drop-target");
+  root?.querySelectorAll(".poker-pile--drop-target")
+    .forEach((p) => p.classList.remove("poker-pile--drop-target"));
+  dragController.pointerId = null;
+  dragController.cardId = null;
+  dragController.fromZone = null;
+  dragController.sourceEl = null;
+  dragController.cloneEl = null;
+  dragController.active = false;
+  state.draggingCardId = null;
+  state.draggingFromZone = null;
+}
+
+function dragBegin(event, cardEl, fromZone) {
+  const rect = cardEl.getBoundingClientRect();
+  dragController.pointerId = event.pointerId;
+  dragController.startX = event.clientX;
+  dragController.startY = event.clientY;
+  dragController.startTime = performance.now();
+  dragController.cardId = Number(cardEl.dataset.cardId);
+  dragController.fromZone = fromZone;
+  dragController.sourceEl = cardEl;
+  dragController.cloneOffsetX = event.clientX - rect.left;
+  dragController.cloneOffsetY = event.clientY - rect.top;
+  dragController.active = false;
+}
+
+function dragActivate(event) {
+  const cardEl = dragController.sourceEl;
+  if (!cardEl) return;
+  const rect = cardEl.getBoundingClientRect();
+  const clone = cardEl.cloneNode(true);
+  clone.classList.add("poker-drag-clone");
+  clone.classList.remove("poker-card--detail", "poker-card--ghost");
+  clone.style.width = `${rect.width}px`;
+  clone.style.height = `${rect.height}px`;
+  clone.style.left = "0px";
+  clone.style.top = "0px";
+  clone.style.transform = `translate(${event.clientX - dragController.cloneOffsetX}px, ${event.clientY - dragController.cloneOffsetY}px) rotate(0deg) scale(1)`;
+  document.body.appendChild(clone);
+  cardEl.classList.add("poker-card--ghost");
+  document.body.classList.add("poker-is-dragging");
+  if (dragController.fromZone === "hand") {
+    const table = elements.contextCardChoices.querySelector(".poker-table");
+    if (table) table.classList.add("poker-table--drop-target");
+  } else {
+    elements.contextCardChoices
+      .querySelectorAll(".poker-pile")
+      .forEach((p) => p.classList.add("poker-pile--drop-target"));
+  }
+  dragController.cloneEl = clone;
+  dragController.active = true;
+  state.draggingCardId = dragController.cardId;
+  state.draggingFromZone = dragController.fromZone;
+  if (state.hoveredCardId !== null) {
+    state.hoveredCardId = null;
+    cardEl.classList.remove("poker-card--detail");
+    const card = state.contextCards.find((c) => c.id === dragController.cardId);
+    if (card) renderPokerCardInternals(cardEl, card, false);
+  }
+}
+
+function dragMove(event) {
+  if (!dragController.cloneEl) return;
+  dragController.cloneEl.style.transform =
+    `translate(${event.clientX - dragController.cloneOffsetX}px, ${event.clientY - dragController.cloneOffsetY}px) rotate(0deg) scale(1)`;
+}
+
+function dragEnd(event) {
+  if (!dragController.active) {
+    dragReset();
+    return;
+  }
+  const root = elements.contextCardChoices;
+  const table = root.querySelector(".poker-table");
+  const tableRect = table?.getBoundingClientRect();
+  const inTable =
+    tableRect &&
+    event.clientX >= tableRect.left && event.clientX <= tableRect.right &&
+    event.clientY >= tableRect.top && event.clientY <= tableRect.bottom;
+
+  if (dragController.fromZone === "hand" && inTable) {
+    const cardId = dragController.cardId;
+    dragReset();
+    playCard(cardId);
+    return;
+  }
+
+  if (dragController.fromZone === "table") {
+    const piles = root.querySelectorAll(".poker-pile");
+    for (const pile of piles) {
+      const r = pile.getBoundingClientRect();
+      if (event.clientX >= r.left && event.clientX <= r.right &&
+          event.clientY >= r.top && event.clientY <= r.bottom) {
+        const cardId = dragController.cardId;
+        dragReset();
+        recallCard(cardId);
+        return;
+      }
+    }
+  }
+
+  dragReturnHome();
+}
+
+function dragReturnHome() {
+  const clone = dragController.cloneEl;
+  const source = dragController.sourceEl;
+  if (!clone) {
+    dragReset();
+    return;
+  }
+  const targetRect = source?.getBoundingClientRect();
+  if (targetRect) {
+    clone.classList.add("is-returning");
+    clone.style.transform = `translate(${targetRect.left}px, ${targetRect.top}px) rotate(0deg) scale(1)`;
+  } else {
+    clone.classList.add("is-returning");
+  }
+  setTimeout(() => {
+    dragReset();
+  }, 320);
+}

@@ -1,12 +1,14 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.models.schemas import GenerationHistoryResponse
+from app.models.schemas import GenerationHistoryCreate, GenerationHistoryResponse
 from app.services.history_service import (
     HistoryNotFoundError,
+    create_history,
     delete_history,
     get_history_by_id,
     list_history,
 )
+from app.services.template_service import TemplateNotFoundError
 
 
 router = APIRouter(prefix="/api/history", tags=["history"])
@@ -22,6 +24,31 @@ def get_history_list(
     路由层只接收参数，并调用 service 层完成真实查询。
     """
     return list_history(limit=limit)
+
+
+@router.post(
+    "",
+    response_model=GenerationHistoryResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_history_item(payload: GenerationHistoryCreate) -> GenerationHistoryResponse:
+    """
+    手动保存当前预生成 Prompt 到历史记录。
+    """
+    try:
+        return create_history(payload)
+    except TemplateNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.post(
+    "/",
+    response_model=GenerationHistoryResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
+def create_history_item_with_slash(payload: GenerationHistoryCreate) -> GenerationHistoryResponse:
+    return create_history_item(payload)
 
 
 @router.get("/{history_id}", response_model=GenerationHistoryResponse)

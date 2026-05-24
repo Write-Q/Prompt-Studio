@@ -2,47 +2,68 @@ import sqlite3
 from pathlib import Path
 
 
-# 项目根目录，对应 PromptStudio/
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-# 数据库存放目录，对应 PromptStudio/data/
 DATA_DIR = BASE_DIR / "data"
-
-# SQLite 数据库文件路径
 DB_PATH = DATA_DIR / "app.db"
 
 
+class AppConnection(sqlite3.Connection):
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
 def get_connection() -> sqlite3.Connection:
-    """
-    获取数据库连接。
-
-    这里统一处理数据库目录创建和连接配置，
-    后续路由层、服务层如果要访问数据库，都应该复用这个方法。
-    """
-    # 如果 data 目录还不存在，就自动创建
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    # 建立 SQLite 连接
-    connection = sqlite3.connect(DB_PATH)
-
-    # 让查询结果支持按列名读取，后续转字典时更方便
+    connection = sqlite3.connect(DB_PATH, factory=AppConnection)
     connection.row_factory = sqlite3.Row
     return connection
 
 
-def init_db() -> None:
-    """
-    初始化数据库表结构。
+def _ensure_column(cursor: sqlite3.Cursor, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in cursor.execute(f"PRAGMA table_info({table})")}
+    if column not in columns:
+        cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    当前阶段先只负责创建三张核心业务表：
-    1. prompt_templates
-    2. knowledge_snippets
-    3. generation_history
-    """
+
+def _migrate_context_cards_without_source(cursor: sqlite3.Cursor) -> None:
+    columns = {row["name"] for row in cursor.execute("PRAGMA table_info(context_cards)")}
+    if "source" not in columns:
+        return
+
+    cursor.execute("DROP INDEX IF EXISTS idx_context_cards_seed_key")
+    cursor.execute(
+        """
+        CREATE TABLE context_cards_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            seed_key TEXT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            tags TEXT,
+            content TEXT NOT NULL,
+            created_at TEXT,
+            updated_at TEXT
+        )
+        """
+    )
+    cursor.execute(
+        """
+        INSERT INTO context_cards_new (
+            id, seed_key, type, title, tags, content, created_at, updated_at
+        )
+        SELECT id, seed_key, type, title, tags, content, created_at, updated_at
+        FROM context_cards
+        """
+    )
+    cursor.execute("DROP TABLE context_cards")
+    cursor.execute("ALTER TABLE context_cards_new RENAME TO context_cards")
+
+
+def init_db() -> None:
     with get_connection() as connection:
         cursor = connection.cursor()
-
-        # Prompt 模板表
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS prompt_templates (
@@ -57,41 +78,65 @@ def init_db() -> None:
             )
             """
         )
-
-        # 知识片段表
+        _ensure_column(cursor, "prompt_templates", "seed_key", "TEXT")
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS knowledge_snippets (
+            CREATE TABLE IF NOT EXISTS context_cards (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                seed_key TEXT,
+                type TEXT NOT NULL,
                 title TEXT NOT NULL,
                 tags TEXT,
                 content TEXT NOT NULL,
-                source TEXT,
                 created_at TEXT,
                 updated_at TEXT
             )
             """
         )
-
-        # 生成历史表
+        _ensure_column(cursor, "context_cards", "seed_key", "TEXT")
+        _migrate_context_cards_without_source(cursor)
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS generation_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 template_id INTEGER NOT NULL,
                 variables_json TEXT,
-                snippet_ids TEXT,
+                context_card_ids TEXT,
                 final_prompt TEXT NOT NULL,
                 created_at TEXT
             )
             """
         )
-
-        # 提交建表操作
+        _ensure_column(cursor, "generation_history", "context_card_ids", "TEXT")
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_prompt_templates_seed_key
+            ON prompt_templates(seed_key)
+            WHERE seed_key IS NOT NULL
+            """
+        )
+        cursor.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_context_cards_seed_key
+            ON context_cards(seed_key)
+            WHERE seed_key IS NOT NULL
+            """
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_generation_history_created_at "
+            "ON generation_history(created_at DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prompt_templates_category "
+            "ON prompt_templates(category)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_context_cards_type "
+            "ON context_cards(type)"
+        )
         connection.commit()
 
 
 if __name__ == "__main__":
-    # 允许直接运行这个文件，用来单独验证数据库是否初始化成功
     init_db()
     print(f"数据库初始化完成：{DB_PATH}")
