@@ -48,16 +48,27 @@ def create_context_card(payload: ContextCardCreate) -> ContextCardResponse:
         connection.commit()
         card_id = cursor.lastrowid
 
-    return get_context_card_by_id(card_id)
+    return ContextCardResponse(
+        id=card_id,
+        seed_key=None,
+        type=payload.type,
+        title=payload.title,
+        tags=list(payload.tags),
+        content=payload.content,
+        created_at=current_time,
+        updated_at=current_time,
+    )
 
 
 def list_context_cards(
     type: ContextCardType | None = None,
     tag: str | None = None,
     keyword: str | None = None,
+    limit: int = 200,
+    offset: int = 0,
 ) -> list[ContextCardResponse]:
     sql = f"SELECT {CONTEXT_CARD_COLUMNS} FROM context_cards WHERE 1 = 1"
-    params: list[str] = []
+    params: list = []
 
     if type:
         sql += " AND type = ?"
@@ -72,7 +83,8 @@ def list_context_cards(
         sql += " AND (title LIKE ? OR content LIKE ? OR tags LIKE ?)"
         params.extend([pattern, pattern, pattern])
 
-    sql += " ORDER BY updated_at DESC, id DESC"
+    sql += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+    params.extend([max(1, min(limit, 500)), max(0, offset)])
 
     with get_connection() as connection:
         rows = connection.execute(sql, params).fetchall()
@@ -94,29 +106,39 @@ def get_context_card_by_id(card_id: int) -> ContextCardResponse:
 
 
 def update_context_card(card_id: int, payload: ContextCardUpdate) -> ContextCardResponse:
+    current_time = now_text()
     with get_connection() as connection:
-        cursor = connection.cursor()
-        cursor.execute(
+        row = connection.execute(
             """
             UPDATE context_cards
             SET type = ?, title = ?, tags = ?, content = ?, updated_at = ?
             WHERE id = ?
+            RETURNING seed_key, created_at
             """,
             (
                 payload.type,
                 payload.title,
                 serialize_tags(payload.tags),
                 payload.content,
-                now_text(),
+                current_time,
                 card_id,
             ),
-        )
+        ).fetchone()
         connection.commit()
 
-    if cursor.rowcount == 0:
+    if row is None:
         raise ContextCardNotFoundError(f"ID 为 {card_id} 的上下文卡片不存在")
 
-    return get_context_card_by_id(card_id)
+    return ContextCardResponse(
+        id=card_id,
+        seed_key=row["seed_key"],
+        type=payload.type,
+        title=payload.title,
+        tags=list(payload.tags),
+        content=payload.content,
+        created_at=row["created_at"],
+        updated_at=current_time,
+    )
 
 
 def delete_context_card(card_id: int) -> bool:

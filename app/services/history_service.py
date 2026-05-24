@@ -50,6 +50,7 @@ def list_history(limit: int = 20) -> list[GenerationHistoryResponse]:
 def create_history(payload: GenerationHistoryCreate) -> GenerationHistoryResponse:
     get_template_by_id(payload.template_id)
 
+    current_time = now_text()
     with get_connection() as connection:
         cursor = connection.cursor()
         cursor.execute(
@@ -64,13 +65,20 @@ def create_history(payload: GenerationHistoryCreate) -> GenerationHistoryRespons
                 json.dumps(payload.variables, ensure_ascii=False),
                 json.dumps(payload.context_card_ids, ensure_ascii=False),
                 payload.final_prompt,
-                now_text(),
+                current_time,
             ),
         )
         connection.commit()
         history_id = cursor.lastrowid
 
-    return get_history_by_id(history_id)
+    return GenerationHistoryResponse(
+        id=history_id,
+        template_id=payload.template_id,
+        variables=dict(payload.variables),
+        context_card_ids=list(payload.context_card_ids),
+        final_prompt=payload.final_prompt,
+        created_at=current_time,
+    )
 
 
 def get_history_by_id(history_id: int) -> GenerationHistoryResponse:

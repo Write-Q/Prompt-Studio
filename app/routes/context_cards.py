@@ -23,8 +23,10 @@ def list_context_card_items(
     type: ContextCardType | None = Query(default=None),
     tag: str | None = Query(default=None),
     keyword: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[ContextCardResponse]:
-    return list_context_cards(type=type, tag=tag, keyword=keyword)
+    return list_context_cards(type=type, tag=tag, keyword=keyword, limit=limit, offset=offset)
 
 
 @router.post("", response_model=ContextCardResponse, status_code=status.HTTP_201_CREATED)

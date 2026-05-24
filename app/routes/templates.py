@@ -38,14 +38,15 @@ def _raise_template_not_found(error: TemplateNotFoundError) -> None:
 def list_template_items(
     category: str | None = Query(default=None, description="按模板分类筛选"),
     keyword: str | None = Query(default=None, description="按标题、内容、说明或标签搜索"),
+    limit: int = Query(default=100, ge=1, le=500, description="分页大小"),
+    offset: int = Query(default=0, ge=0, description="跳过条数"),
 ) -> list[PromptTemplateResponse]:
     """
     获取模板列表。
 
-    这里不直接写 SQL，
-    只接收查询参数并调用服务层完成实际查询。
+    路由层只接收参数并调用服务层完成实际查询。
     """
-    return list_templates(category=category, keyword=keyword)
+    return list_templates(category=category, keyword=keyword, limit=limit, offset=offset)
 
 
 @router.post(

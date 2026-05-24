@@ -56,15 +56,27 @@ def create_template(payload: PromptTemplateCreate) -> PromptTemplateResponse:
         connection.commit()
         template_id = cursor.lastrowid
 
-    return get_template_by_id(template_id)
+    return PromptTemplateResponse(
+        id=template_id,
+        seed_key=None,
+        title=payload.title,
+        category=payload.category,
+        tags=list(payload.tags),
+        content=payload.content,
+        description=payload.description,
+        created_at=current_time,
+        updated_at=current_time,
+    )
 
 
 def list_templates(
     category: str | None = None,
     keyword: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[PromptTemplateResponse]:
     sql = f"SELECT {TEMPLATE_COLUMNS} FROM prompt_templates WHERE 1 = 1"
-    params: list[str] = []
+    params: list = []
 
     if category and category.strip():
         sql += " AND category = ?"
@@ -82,7 +94,8 @@ def list_templates(
         """
         params.extend([pattern, pattern, pattern, pattern])
 
-    sql += " ORDER BY updated_at DESC, id DESC"
+    sql += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+    params.extend([max(1, min(limit, 500)), max(0, offset)])
 
     with get_connection() as connection:
         rows = connection.execute(sql, params).fetchall()
@@ -107,13 +120,14 @@ def update_template(
     template_id: int,
     payload: PromptTemplateUpdate,
 ) -> PromptTemplateResponse:
+    current_time = now_text()
     with get_connection() as connection:
-        cursor = connection.cursor()
-        cursor.execute(
+        row = connection.execute(
             """
             UPDATE prompt_templates
             SET title = ?, category = ?, tags = ?, content = ?, description = ?, updated_at = ?
             WHERE id = ?
+            RETURNING seed_key, created_at
             """,
             (
                 payload.title,
@@ -121,16 +135,26 @@ def update_template(
                 serialize_tags(payload.tags),
                 payload.content,
                 payload.description,
-                now_text(),
+                current_time,
                 template_id,
             ),
-        )
+        ).fetchone()
         connection.commit()
 
-        if cursor.rowcount == 0:
-            raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
+    if row is None:
+        raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
 
-    return get_template_by_id(template_id)
+    return PromptTemplateResponse(
+        id=template_id,
+        seed_key=row["seed_key"],
+        title=payload.title,
+        category=payload.category,
+        tags=list(payload.tags),
+        content=payload.content,
+        description=payload.description,
+        created_at=row["created_at"],
+        updated_at=current_time,
+    )
 
 
 def delete_template(template_id: int) -> bool:

@@ -122,6 +122,18 @@ def init_db() -> None:
             WHERE seed_key IS NOT NULL
             """
         )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_generation_history_created_at "
+            "ON generation_history(created_at DESC)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prompt_templates_category "
+            "ON prompt_templates(category)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_context_cards_type "
+            "ON context_cards(type)"
+        )
         connection.commit()
 
 

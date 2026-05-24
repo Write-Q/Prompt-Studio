@@ -118,8 +118,8 @@ class FrontendFallbackSeedTest(unittest.TestCase):
     def test_frontend_assets_are_cache_busted(self):
         index = INDEX.read_text(encoding="utf-8")
 
-        self.assertIn('./style.css?v=workflow-note-refine', index)
-        self.assertIn('./script.js?v=workflow-note-refine', index)
+        self.assertIn('./style.css?v=visual-system-v1', index)
+        self.assertIn('./script.js?v=visual-system-v1', index)
 
     def test_sidebar_status_and_variable_inputs_match_current_workflow(self):
         index = INDEX.read_text(encoding="utf-8")
