@@ -28,9 +28,6 @@ Thumbs.db
 CLAUDE.md
 docs/
 
-# 测试目录（本地保留可跑，不入库）
-tests/
-
 # 设计源图原稿（前端不引用）
 frontend/assets/illustrations/*-source.png
 
