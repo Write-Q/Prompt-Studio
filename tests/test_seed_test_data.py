@@ -1,7 +1,7 @@
 """示例数据注入脚本 seed_test_data 的测试。
 
 把脚本与数据库都指向临时库，验证：种子模板 / 卡片全部写入、
-五种卡片类型齐全、以及脚本可重复执行（幂等，再跑一次数量不变）。
+五种卡片类型齐全、以及脚本每次都会重建一份干净演示数据。
 """
 
 import contextlib
@@ -45,6 +45,20 @@ class SeedTestDataTests(unittest.TestCase):
         self.assertEqual(self._count("prompt_templates"), len(seed.TEMPLATES))
         self.assertEqual(self._count("context_cards"), len(seed.CONTEXT_CARDS))
 
+    def test_demo_tables_do_not_keep_seed_key_columns(self) -> None:
+        self._run_seed()
+        with database.get_connection() as connection:
+            template_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(prompt_templates)").fetchall()
+            }
+            card_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(context_cards)").fetchall()
+            }
+        self.assertNotIn("seed_key", template_columns)
+        self.assertNotIn("seed_key", card_columns)
+
     def test_card_types_cover_all_five(self) -> None:
         self._run_seed()
         with database.get_connection() as connection:
@@ -52,14 +66,34 @@ class SeedTestDataTests(unittest.TestCase):
         types = {row[0] for row in rows}
         self.assertEqual(types, {"background", "rule", "format", "example", "checklist"})
 
-    def test_seed_is_idempotent(self) -> None:
+    def test_seed_rebuilds_clean_demo_data(self) -> None:
         self._run_seed()
-        templates_after_first = self._count("prompt_templates")
-        cards_after_first = self._count("context_cards")
+
+        with database.get_connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO prompt_templates (title, category, tags, content, description, created_at, updated_at)
+                VALUES ('临时模板', NULL, '[]', '临时内容', NULL, '2026-05-25T00:00:00', '2026-05-25T00:00:00')
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO context_cards (type, title, tags, content, created_at, updated_at)
+                VALUES ('background', '临时卡片', '[]', '临时内容', '2026-05-25T00:00:00', '2026-05-25T00:00:00')
+                """
+            )
+            connection.execute(
+                """
+                INSERT INTO generation_history (template_id, variables_json, context_card_ids, final_prompt, created_at)
+                VALUES (1, '{}', '[]', '临时历史', '2026-05-25T00:00:00')
+                """
+            )
+            connection.commit()
 
         self._run_seed()
-        self.assertEqual(self._count("prompt_templates"), templates_after_first)
-        self.assertEqual(self._count("context_cards"), cards_after_first)
+        self.assertEqual(self._count("prompt_templates"), len(seed.TEMPLATES))
+        self.assertEqual(self._count("context_cards"), len(seed.CONTEXT_CARDS))
+        self.assertEqual(self._count("generation_history"), 0)
 
 
 if __name__ == "__main__":

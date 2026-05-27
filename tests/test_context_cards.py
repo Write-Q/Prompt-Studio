@@ -48,7 +48,7 @@ class ContextCardsRoutesTests(unittest.TestCase):
         self.assertEqual(card["type"], "background")
         self.assertEqual(card["title"], "背景卡片")
         self.assertEqual(card["tags"], ["测试", "背景"])
-        self.assertIsNone(card["seed_key"])
+        self.assertNotIn("seed_key", card)
         self.assertTrue(card["created_at"])
 
     def test_tags_accept_chinese_separators(self) -> None:

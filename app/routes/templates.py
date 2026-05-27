@@ -15,57 +15,30 @@ from app.services.template_service import (
 )
 
 
-router = APIRouter(
-    prefix="/api/templates",
-    tags=["Prompt 模板"],
-)
+router = APIRouter(prefix="/api/templates", tags=["Prompt 模板"])
 
 
 def _raise_template_not_found(error: TemplateNotFoundError) -> None:
-    """
-    把服务层的“模板不存在”异常转换成 HTTP 404。
-
-    服务层不直接处理 HTTP 状态码，
-    路由层负责把业务异常转换成接口响应。
-    """
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=str(error),
-    ) from error
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.get("", response_model=list[PromptTemplateResponse])
 def list_template_items(
-    category: str | None = Query(default=None, description="按模板分类筛选"),
-    keyword: str | None = Query(default=None, description="按标题、内容、说明或标签搜索"),
-    limit: int = Query(default=100, ge=1, le=500, description="分页大小"),
-    offset: int = Query(default=0, ge=0, description="跳过条数"),
+    category: str | None = Query(default=None),
+    keyword: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[PromptTemplateResponse]:
-    """
-    获取模板列表。
-
-    路由层只接收参数并调用服务层完成实际查询。
-    """
     return list_templates(category=category, keyword=keyword, limit=limit, offset=offset)
 
 
-@router.post(
-    "",
-    response_model=PromptTemplateResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("", response_model=PromptTemplateResponse, status_code=status.HTTP_201_CREATED)
 def create_template_item(payload: PromptTemplateCreate) -> PromptTemplateResponse:
-    """
-    新增 Prompt 模板。
-    """
     return create_template(payload)
 
 
 @router.get("/{template_id}", response_model=PromptTemplateResponse)
 def get_template_item(template_id: int) -> PromptTemplateResponse:
-    """
-    根据 id 获取模板详情。
-    """
     try:
         return get_template_by_id(template_id)
     except TemplateNotFoundError as error:
@@ -77,9 +50,6 @@ def update_template_item(
     template_id: int,
     payload: PromptTemplateUpdate,
 ) -> PromptTemplateResponse:
-    """
-    更新指定模板。
-    """
     try:
         return update_template(template_id, payload)
     except TemplateNotFoundError as error:
@@ -88,9 +58,6 @@ def update_template_item(
 
 @router.delete("/{template_id}")
 def delete_template_item(template_id: int) -> dict:
-    """
-    删除指定模板。
-    """
     try:
         delete_template(template_id)
     except TemplateNotFoundError as error:

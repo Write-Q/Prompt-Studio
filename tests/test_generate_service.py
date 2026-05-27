@@ -66,7 +66,6 @@ class GenerateAlgorithmTests(unittest.TestCase):
     def _card(card_type: str, title: str) -> ContextCardResponse:
         return ContextCardResponse(
             id=1,
-            seed_key=None,
             type=card_type,
             title=title,
             tags=[],

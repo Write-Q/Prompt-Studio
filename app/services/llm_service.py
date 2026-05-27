@@ -2,7 +2,7 @@ import os
 from collections.abc import Iterator
 from typing import Any
 
-from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, OpenAIError
+from openai import OpenAI, OpenAIError
 
 from app.models.schemas import (
     LlmAnswerRequest,
@@ -38,17 +38,7 @@ def _get_deepseek_api_key() -> str:
 
 
 def _create_deepseek_client():
-    return OpenAI(
-        api_key=_get_deepseek_api_key(),
-        base_url=DEEPSEEK_BASE_URL,
-    )
-
-
-def _format_status_error(error: APIStatusError) -> str:
-    status_code = getattr(error, "status_code", "unknown")
-    response = getattr(error, "response", None)
-    response_text = getattr(response, "text", str(error))
-    return f"DeepSeek 接口返回错误：{status_code} {response_text}"
+    return OpenAI(api_key=_get_deepseek_api_key(), base_url=DEEPSEEK_BASE_URL)
 
 
 def _create_chat_completion(request_body: dict[str, Any], timeout: int = 60):
@@ -57,12 +47,6 @@ def _create_chat_completion(request_body: dict[str, Any], timeout: int = 60):
             **request_body,
             timeout=timeout,
         )
-    except APIStatusError as error:
-        raise LlmRequestError(_format_status_error(error)) from error
-    except APITimeoutError as error:
-        raise LlmRequestError("DeepSeek 请求超时，请稍后再试") from error
-    except APIConnectionError as error:
-        raise LlmRequestError(f"DeepSeek 请求失败：{error}") from error
     except OpenAIError as error:
         raise LlmRequestError(f"DeepSeek 请求失败：{error}") from error
 
@@ -79,14 +63,7 @@ def _extract_message_content(completion: Any) -> str:
 
 
 def _post_chat_completion(request_body: dict[str, Any]) -> str:
-    return _extract_message_content(
-        _create_chat_completion(
-            {
-                **request_body,
-                "stream": False,
-            }
-        )
-    )
+    return _extract_message_content(_create_chat_completion({**request_body, "stream": False}))
 
 
 def build_prompt_optimizer_messages(prompt: str) -> list[dict[str, str]]:
@@ -133,12 +110,13 @@ def _iter_deepseek_stream(response: Any) -> Iterator[str]:
 
 
 def stream_deepseek_answer(payload: LlmAnswerRequest) -> Iterator[str]:
-    response = _create_chat_completion(
-        {
-            "model": payload.model,
-            "messages": [{"role": "user", "content": payload.prompt}],
-            "temperature": payload.temperature,
-            "stream": True,
-        }
+    return _iter_deepseek_stream(
+        _create_chat_completion(
+            {
+                "model": payload.model,
+                "messages": [{"role": "user", "content": payload.prompt}],
+                "temperature": payload.temperature,
+                "stream": True,
+            }
+        )
     )
-    return _iter_deepseek_stream(response)

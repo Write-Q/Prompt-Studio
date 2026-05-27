@@ -22,7 +22,6 @@ fallbackTemplates.splice(
   fallbackTemplates.length,
   {
     id: 1001,
-    seed_key: "daily_schedule_planner",
     title: "日程规划助手",
     category: "个人效率",
     tags: ["日程", "计划", "优先级"],
@@ -33,7 +32,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1002,
-    seed_key: "study_notes_organizer",
     title: "学习笔记整理",
     category: "学习成长",
     tags: ["学习", "笔记", "复习"],
@@ -44,7 +42,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1003,
-    seed_key: "material_summary_extractor",
     title: "资料总结与重点提取",
     category: "信息整理",
     tags: ["总结", "提炼", "资料"],
@@ -55,7 +52,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1004,
-    seed_key: "article_polish_rewrite",
     title: "文章润色改写",
     category: "写作表达",
     tags: ["润色", "改写", "写作"],
@@ -66,7 +62,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1005,
-    seed_key: "weekly_report_organizer",
     title: "工作周报整理",
     category: "工作沟通",
     tags: ["周报", "复盘", "汇报"],
@@ -77,7 +72,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1006,
-    seed_key: "meeting_minutes_organizer",
     title: "会议纪要整理",
     category: "工作沟通",
     tags: ["会议", "纪要", "行动项"],
@@ -88,7 +82,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1007,
-    seed_key: "communication_expression_optimizer",
     title: "沟通表达优化",
     category: "写作表达",
     tags: ["沟通", "表达", "消息"],
@@ -99,7 +92,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1008,
-    seed_key: "travel_plan_builder",
     title: "旅行攻略规划",
     category: "生活助理",
     tags: ["旅行", "攻略", "规划"],
@@ -110,7 +102,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1009,
-    seed_key: "product_comparison_decision",
     title: "商品对比决策",
     category: "生活助理",
     tags: ["购物", "对比", "决策"],
@@ -121,7 +112,6 @@ fallbackTemplates.splice(
   },
   {
     id: 1010,
-    seed_key: "weekly_meal_planner",
     title: "一周饮食计划",
     category: "生活助理",
     tags: ["饮食", "健康", "计划"],
@@ -137,7 +127,6 @@ fallbackContextCards.splice(
   fallbackContextCards.length,
   {
     id: 2001,
-    seed_key: "background_promptstudio_daily_use",
     type: "background",
     title: "PromptStudio 日常使用方式",
     tags: ["PromptStudio", "日常", "工作流"],
@@ -147,7 +136,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2002,
-    seed_key: "background_personal_productivity_context",
     type: "background",
     title: "个人效率场景",
     tags: ["效率", "计划", "任务"],
@@ -157,7 +145,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2003,
-    seed_key: "background_life_assistant_context",
     type: "background",
     title: "生活助理场景",
     tags: ["生活", "助理", "规划"],
@@ -167,7 +154,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2004,
-    seed_key: "background_decision_making_context",
     type: "background",
     title: "日常决策关注点",
     tags: ["决策", "对比", "风险"],
@@ -177,7 +163,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2005,
-    seed_key: "background_learning_and_writing_context",
     type: "background",
     title: "学习与写作场景",
     tags: ["学习", "写作", "整理"],
@@ -187,7 +172,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2006,
-    seed_key: "rule_plan_with_buffer",
     type: "rule",
     title: "计划需要留缓冲",
     tags: ["计划", "时间", "缓冲"],
@@ -197,7 +181,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2007,
-    seed_key: "rule_prioritize_before_detail",
     type: "rule",
     title: "先排优先级",
     tags: ["优先级", "任务", "取舍"],
@@ -207,7 +190,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2008,
-    seed_key: "rule_no_unverified_claims",
     type: "rule",
     title: "不补造未给信息",
     tags: ["准确性", "事实", "边界"],
@@ -217,7 +199,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2009,
-    seed_key: "rule_clear_natural_tone",
     type: "rule",
     title: "清楚自然的语气",
     tags: ["语气", "表达", "写作"],
@@ -227,7 +208,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2010,
-    seed_key: "rule_actionable_advice",
     type: "rule",
     title: "建议要能执行",
     tags: ["建议", "执行", "行动"],
@@ -237,7 +217,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2011,
-    seed_key: "rule_keep_user_constraints",
     type: "rule",
     title: "尊重用户限制",
     tags: ["限制", "偏好", "约束"],
@@ -247,7 +226,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2012,
-    seed_key: "rule_when_information_missing",
     type: "rule",
     title: "信息不足时先说明",
     tags: ["澄清", "假设", "不确定"],
@@ -257,7 +235,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2013,
-    seed_key: "format_daily_schedule",
     type: "format",
     title: "日程安排格式",
     tags: ["格式", "日程", "计划"],
@@ -267,7 +244,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2014,
-    seed_key: "format_study_notes",
     type: "format",
     title: "学习笔记格式",
     tags: ["格式", "学习", "笔记"],
@@ -277,7 +253,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2015,
-    seed_key: "format_summary_brief",
     type: "format",
     title: "资料摘要格式",
     tags: ["格式", "总结", "摘要"],
@@ -287,7 +262,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2016,
-    seed_key: "format_weekly_report",
     type: "format",
     title: "周报结构",
     tags: ["格式", "周报", "汇报"],
@@ -297,7 +271,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2017,
-    seed_key: "format_meeting_minutes",
     type: "format",
     title: "会议纪要结构",
     tags: ["格式", "会议", "行动项"],
@@ -307,7 +280,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2018,
-    seed_key: "format_comparison_table",
     type: "format",
     title: "对比选择表",
     tags: ["格式", "对比", "决策"],
@@ -317,7 +289,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2019,
-    seed_key: "format_meal_plan",
     type: "format",
     title: "饮食计划格式",
     tags: ["格式", "饮食", "计划"],
@@ -327,7 +298,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2020,
-    seed_key: "example_task_to_schedule",
     type: "example",
     title: "示例：模糊事项到日程安排",
     tags: ["示例", "日程", "计划"],
@@ -337,7 +307,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2021,
-    seed_key: "example_notes_to_review",
     type: "example",
     title: "示例：课堂笔记到复习材料",
     tags: ["示例", "学习", "复习"],
@@ -347,7 +316,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2022,
-    seed_key: "example_raw_text_to_summary",
     type: "example",
     title: "示例：长资料到重点摘要",
     tags: ["示例", "总结", "资料"],
@@ -357,7 +325,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2023,
-    seed_key: "example_sentence_to_message",
     type: "example",
     title: "示例：直接想法到得体表达",
     tags: ["示例", "沟通", "表达"],
@@ -367,7 +334,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2024,
-    seed_key: "example_items_to_comparison",
     type: "example",
     title: "示例：候选商品到购买建议",
     tags: ["示例", "购物", "决策"],
@@ -377,7 +343,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2025,
-    seed_key: "example_ingredients_to_meal_plan",
     type: "example",
     title: "示例：现有食材到菜单",
     tags: ["示例", "饮食", "菜单"],
@@ -387,7 +352,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2026,
-    seed_key: "checklist_plan_before_execution",
     type: "checklist",
     title: "计划执行前检查",
     tags: ["检查", "计划", "执行"],
@@ -397,7 +361,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2027,
-    seed_key: "checklist_writing_before_send",
     type: "checklist",
     title: "发送前表达检查",
     tags: ["检查", "沟通", "写作"],
@@ -407,7 +370,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2028,
-    seed_key: "checklist_summary_quality",
     type: "checklist",
     title: "摘要质量检查",
     tags: ["检查", "摘要", "总结"],
@@ -417,7 +379,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2029,
-    seed_key: "checklist_meeting_minutes",
     type: "checklist",
     title: "会议纪要检查",
     tags: ["检查", "会议", "纪要"],
@@ -427,7 +388,6 @@ fallbackContextCards.splice(
   },
   {
     id: 2030,
-    seed_key: "checklist_decision_before_purchase",
     type: "checklist",
     title: "购买决策检查",
     tags: ["检查", "购物", "决策"],

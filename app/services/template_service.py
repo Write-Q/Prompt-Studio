@@ -13,15 +13,12 @@ class TemplateNotFoundError(Exception):
     pass
 
 
-TEMPLATE_COLUMNS = """
-    id, seed_key, title, category, tags, content, description, created_at, updated_at
-"""
+TEMPLATE_COLUMNS = "id, title, category, tags, content, description, created_at, updated_at"
 
 
 def _template_from_row(row: Row) -> PromptTemplateResponse:
     return PromptTemplateResponse(
         id=row["id"],
-        seed_key=row["seed_key"],
         title=row["title"],
         category=row["category"],
         tags=deserialize_tags(row["tags"]),
@@ -35,13 +32,13 @@ def _template_from_row(row: Row) -> PromptTemplateResponse:
 def create_template(payload: PromptTemplateCreate) -> PromptTemplateResponse:
     current_time = now_text()
     with get_connection() as connection:
-        cursor = connection.cursor()
-        cursor.execute(
-            """
+        row = connection.execute(
+            f"""
             INSERT INTO prompt_templates (
                 title, category, tags, content, description, created_at, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?)
+            RETURNING {TEMPLATE_COLUMNS}
             """,
             (
                 payload.title,
@@ -52,21 +49,9 @@ def create_template(payload: PromptTemplateCreate) -> PromptTemplateResponse:
                 current_time,
                 current_time,
             ),
-        )
+        ).fetchone()
         connection.commit()
-        template_id = cursor.lastrowid
-
-    return PromptTemplateResponse(
-        id=template_id,
-        seed_key=None,
-        title=payload.title,
-        category=payload.category,
-        tags=list(payload.tags),
-        content=payload.content,
-        description=payload.description,
-        created_at=current_time,
-        updated_at=current_time,
-    )
+    return _template_from_row(row)
 
 
 def list_templates(
@@ -123,11 +108,11 @@ def update_template(
     current_time = now_text()
     with get_connection() as connection:
         row = connection.execute(
-            """
+            f"""
             UPDATE prompt_templates
             SET title = ?, category = ?, tags = ?, content = ?, description = ?, updated_at = ?
             WHERE id = ?
-            RETURNING seed_key, created_at
+            RETURNING {TEMPLATE_COLUMNS}
             """,
             (
                 payload.title,
@@ -144,17 +129,7 @@ def update_template(
     if row is None:
         raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
 
-    return PromptTemplateResponse(
-        id=template_id,
-        seed_key=row["seed_key"],
-        title=payload.title,
-        category=payload.category,
-        tags=list(payload.tags),
-        content=payload.content,
-        description=payload.description,
-        created_at=row["created_at"],
-        updated_at=current_time,
-    )
+    return _template_from_row(row)
 
 
 def delete_template(template_id: int) -> bool:

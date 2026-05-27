@@ -83,7 +83,7 @@ $env:DEEPSEEK_API_KEY="你的 DeepSeek API Key"
 ```text
 app/
 ├── main.py                 # FastAPI 应用 + 路由挂载 + lifespan
-├── database.py             # sqlite3 连接 + 幂等迁移 + 索引
+├── database.py             # sqlite3 连接 + 建表 + 索引
 ├── models/schemas.py       # Pydantic 请求/响应模型
 ├── routes/                 # 路由层（参数解析 + HTTPException 映射）
 └── services/               # 服务层（业务逻辑 + 自定义异常）
@@ -94,7 +94,7 @@ frontend/
 ├── style.css
 └── assets/illustrations/   # 像素插画 PNG（8 张）
 
-seed_test_data.py           # 示例数据注入（幂等 INSERT OR REPLACE）
+seed_test_data.py           # 重建演示数据库并写入固定示例数据
 requirements.txt
 ```
 
@@ -111,10 +111,10 @@ node --check frontend\script.js
 ## 数据库初始化与示例数据
 
 ```powershell
-# 建表 + 迁移（启动时自动执行，也可手动跑）
+# 创建当前表结构（启动时自动执行，也可手动跑）
 .\.venv\Scripts\python.exe -m app.database
 
-# 注入示例模板与上下文卡片
+# 重建演示数据库并写入示例模板与上下文卡片
 .\.venv\Scripts\python.exe seed_test_data.py
 ```
 

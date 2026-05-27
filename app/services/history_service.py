@@ -52,13 +52,13 @@ def create_history(payload: GenerationHistoryCreate) -> GenerationHistoryRespons
 
     current_time = now_text()
     with get_connection() as connection:
-        cursor = connection.cursor()
-        cursor.execute(
+        row = connection.execute(
             """
             INSERT INTO generation_history (
                 template_id, variables_json, context_card_ids, final_prompt, created_at
             )
             VALUES (?, ?, ?, ?, ?)
+            RETURNING id, template_id, variables_json, context_card_ids, final_prompt, created_at
             """,
             (
                 payload.template_id,
@@ -67,18 +67,9 @@ def create_history(payload: GenerationHistoryCreate) -> GenerationHistoryRespons
                 payload.final_prompt,
                 current_time,
             ),
-        )
+        ).fetchone()
         connection.commit()
-        history_id = cursor.lastrowid
-
-    return GenerationHistoryResponse(
-        id=history_id,
-        template_id=payload.template_id,
-        variables=dict(payload.variables),
-        context_card_ids=list(payload.context_card_ids),
-        final_prompt=payload.final_prompt,
-        created_at=current_time,
-    )
+    return _build_history_response(row)
 
 
 def get_history_by_id(history_id: int) -> GenerationHistoryResponse:

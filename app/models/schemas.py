@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 ContextCardType = Literal["background", "rule", "format", "example", "checklist"]
@@ -58,21 +58,14 @@ class PromptTemplateBase(BaseModel):
         return normalize_tags(value)
 
 
-class PromptTemplateCreate(PromptTemplateBase):
-    pass
-
-
-class PromptTemplateUpdate(PromptTemplateBase):
-    pass
+class PromptTemplateCreate(PromptTemplateBase): pass
+class PromptTemplateUpdate(PromptTemplateBase): pass
 
 
 class PromptTemplateResponse(PromptTemplateBase):
     id: int
-    seed_key: str | None = None
     created_at: str
     updated_at: str
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class ContextCardBase(BaseModel):
@@ -97,21 +90,14 @@ class ContextCardBase(BaseModel):
         return normalize_tags(value)
 
 
-class ContextCardCreate(ContextCardBase):
-    pass
-
-
-class ContextCardUpdate(ContextCardBase):
-    pass
+class ContextCardCreate(ContextCardBase): pass
+class ContextCardUpdate(ContextCardBase): pass
 
 
 class ContextCardResponse(ContextCardBase):
     id: int
-    seed_key: str | None = None
     created_at: str
     updated_at: str
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class GenerateRequest(BaseModel):
