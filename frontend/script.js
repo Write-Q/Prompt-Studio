@@ -2031,12 +2031,11 @@ async function saveContextCard(event) {
   const method = isEditing ? "PUT" : "POST";
 
   try {
-    const saved = await requestJson(url, {
+    await requestJson(url, {
       method,
       body: JSON.stringify(payload),
     });
 
-    state.selectedContextCardIds.add(saved.id);
     resetContextCardForm();
     await loadData();
     showToast(isEditing ? "上下文卡片已更新" : "上下文卡片已保存");

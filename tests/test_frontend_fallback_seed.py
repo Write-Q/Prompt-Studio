@@ -20,6 +20,9 @@ from app.main import app
 from fastapi.testclient import TestClient
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
 class FrontendFallbackSeedTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmpdir = Path(tempfile.mkdtemp(prefix="ps_front_"))
@@ -57,6 +60,17 @@ class FrontendFallbackSeedTests(unittest.TestCase):
         cards = self.client.get("/api/context-cards", params={"limit": 500}).json()
         self.assertEqual(len(templates), len(seed.TEMPLATES))
         self.assertEqual(len(cards), len(seed.CONTEXT_CARDS))
+
+    def test_saved_context_card_is_not_auto_selected_on_dashboard(self) -> None:
+        script = (PROJECT_ROOT / "frontend" / "script.js").read_text(encoding="utf-8")
+        start = script.index("async function saveContextCard(event)")
+        end = script.index("\nfunction editTemplate", start)
+        save_context_card_body = script[start:end]
+
+        self.assertNotIn(
+            "state.selectedContextCardIds.add(saved.id);",
+            save_context_card_body,
+        )
 
 
 if __name__ == "__main__":
