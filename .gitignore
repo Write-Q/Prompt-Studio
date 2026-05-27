@@ -27,6 +27,8 @@ Thumbs.db
 # Claude / 项目内部说明文档
 CLAUDE.md
 docs/
+tests/
+答辩材料/
 
 # 设计源图原稿（前端不引用）
 frontend/assets/illustrations/*-source.png
