@@ -10,21 +10,12 @@ class HistoryNotFoundError(Exception):
     pass
 
 
-def _safe_json_loads(value: str | None, default):
-    if not value:
-        return default
-    try:
-        return json.loads(value)
-    except json.JSONDecodeError:
-        return default
-
-
 def _build_history_response(row) -> GenerationHistoryResponse:
     return GenerationHistoryResponse(
         id=row["id"],
         template_id=row["template_id"],
-        variables=_safe_json_loads(row["variables_json"], {}),
-        context_card_ids=_safe_json_loads(row["context_card_ids"], []),
+        variables=json.loads(row["variables_json"]),
+        context_card_ids=json.loads(row["context_card_ids"]),
         final_prompt=row["final_prompt"],
         created_at=row["created_at"],
     )
