@@ -29,6 +29,7 @@ CLAUDE.md
 docs/
 tests/
 答辩材料/
+presentation/
 
 # 设计源图原稿（前端不引用）
 frontend/assets/illustrations/*-source.png
