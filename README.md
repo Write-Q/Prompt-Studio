@@ -60,6 +60,7 @@ $env:DEEPSEEK_API_KEY="你的 DeepSeek API Key"
 | `/api/templates` | GET / POST | 模板列表（支持 `category`、`keyword`、`limit`、`offset`）/ 新建 |
 | `/api/templates/{id}` | GET / PUT / DELETE | 单条详情 / 更新 / 删除 |
 | `/api/context-cards` | GET / POST | 上下文卡片列表（支持 `type`、`tag`、`keyword`、`limit`、`offset`）/ 新建 |
+| `/api/context-cards/recommend` | POST | 根据输入文本推荐相关上下文卡片 |
 | `/api/context-cards/{id}` | GET / PUT / DELETE | 单条详情 / 更新 / 删除 |
 | `/api/generate` | POST | 预生成 Prompt（规则组装，不写历史） |
 | `/api/history` | GET / POST | 历史列表（支持 `limit`）/ 手动保存 |

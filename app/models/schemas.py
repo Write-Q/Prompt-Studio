@@ -100,6 +100,16 @@ class ContextCardResponse(ContextCardBase):
     updated_at: str
 
 
+class ContextCardRecommendRequest(BaseModel):
+    text: str = Field(..., min_length=1)
+    limit: int = Field(default=5, ge=1, le=20)
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        return clean_required(value)
+
+
 class GenerateRequest(BaseModel):
     template_id: int
     variables: dict[str, str] = Field(default_factory=dict)

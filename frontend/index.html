@@ -190,6 +190,26 @@
 
               <div class="builder-section">
                 <div class="section-title">
+                  <span>智能推荐</span>
+                  <small id="recommendStatus">按任务描述匹配卡片</small>
+                </div>
+                <div class="recommend-box">
+                  <label>
+                    任务描述
+                    <textarea id="recommendText" name="recommend_text" rows="3" autocomplete="off" placeholder="例如：帮我整理项目答辩汇报，要求结构清楚、语气正式。"></textarea>
+                  </label>
+                  <div class="recommend-actions">
+                    <button id="recommendContextCardsButton" type="button">推荐卡片</button>
+                    <button id="usePromptForRecommendButton" class="secondary-button" type="button">用当前 Prompt</button>
+                  </div>
+                  <div id="recommendedContextCards" class="recommend-results">
+                    <div class="empty-state">输入任务描述后，可以自动找出适合挂载的上下文卡片。</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="builder-section">
+                <div class="section-title">
                   <span>上下文卡片</span>
                   <small id="selectedContextCardCount">已选 0 个</small>
                 </div>

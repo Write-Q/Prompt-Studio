@@ -1,7 +1,13 @@
 from sqlite3 import Row
 
 from app.database import get_connection
-from app.models.schemas import ContextCardCreate, ContextCardResponse, ContextCardType, ContextCardUpdate
+from app.models.schemas import (
+    ContextCardCreate,
+    ContextCardRecommendRequest,
+    ContextCardResponse,
+    ContextCardType,
+    ContextCardUpdate,
+)
 from app.services.common import deserialize_tags, now_text, serialize_tags
 
 
@@ -78,6 +84,35 @@ def list_context_cards(
         rows = connection.execute(sql, params).fetchall()
 
     return [_card_from_row(row) for row in rows]
+
+
+def _ngrams(text: str, min_size: int = 2, max_size: int = 4) -> set[str]:
+    text = "".join(text.lower().split())
+    return {
+        text[index : index + size]
+        for size in range(min_size, max_size + 1)
+        for index in range(max(0, len(text) - size + 1))
+    }
+
+
+def _recommend_score(card: ContextCardResponse, text: str) -> int:
+    query = "".join(text.lower().split())
+    tags = [tag.lower() for tag in card.tags]
+    title_terms = _ngrams(card.title)
+    content_terms = _ngrams(card.content)
+    return (
+        sum(5 for tag in tags if tag and tag in query)
+        + sum(3 for term in title_terms if term in query)
+        + sum(1 for term in content_terms if term in query)
+    )
+
+
+def recommend_context_cards(payload: ContextCardRecommendRequest) -> list[ContextCardResponse]:
+    cards = list_context_cards(limit=500)
+    scored = [(_recommend_score(card, payload.text), card) for card in cards]
+    matches = [(score, card) for score, card in scored if score > 0]
+    matches.sort(key=lambda item: (-item[0], item[1].id))
+    return [card for _, card in matches[: payload.limit]]
 
 
 def get_context_card_by_id(card_id: int) -> ContextCardResponse:

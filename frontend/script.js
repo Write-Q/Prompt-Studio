@@ -5,6 +5,9 @@ const state = {
   activeView: "dashboard",
   selectedTemplateId: null,
   selectedContextCardIds: new Set(),
+  recommendedContextCards: [],
+  recommendationText: "",
+  recommendationRan: false,
   editingTemplateId: null,
   editingContextCardId: null,
   expandedPileType: null,
@@ -460,6 +463,11 @@ const elements = {
   quickTemplateSelect: document.querySelector("#quickTemplateSelect"),
   variableFields: document.querySelector("#variableFields"),
   variableCount: document.querySelector("#variableCount"),
+  recommendText: document.querySelector("#recommendText"),
+  recommendStatus: document.querySelector("#recommendStatus"),
+  recommendContextCardsButton: document.querySelector("#recommendContextCardsButton"),
+  usePromptForRecommendButton: document.querySelector("#usePromptForRecommendButton"),
+  recommendedContextCards: document.querySelector("#recommendedContextCards"),
   contextCardChoices: document.querySelector("#contextCardChoices"),
   selectedContextCardCount: document.querySelector("#selectedContextCardCount"),
   workflowSteps: document.querySelectorAll("[data-workflow-step]"),
@@ -1529,6 +1537,7 @@ function playCard(cardId) {
   state.selectedContextCardIds.add(cardId);
   renderContextCardChoices();
   renderContextCards();
+  renderRecommendedContextCards();
   hideOptimizeBox();
   setWorkflowStep("compose");
   updatePromptAssistant();
@@ -1548,6 +1557,7 @@ function recallCard(cardId) {
   state.selectedContextCardIds.delete(cardId);
   renderContextCardChoices();
   renderContextCards();
+  renderRecommendedContextCards();
   hideOptimizeBox();
   setWorkflowStep("compose");
   updatePromptAssistant();
@@ -1620,6 +1630,64 @@ function renderContextCards() {
     .join("");
 }
 
+function compactText(value, maxLength = 92) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
+}
+
+function recommendReason(card) {
+  const query = state.recommendationText.toLowerCase();
+  const tagHits = (card.tags || [])
+    .filter((tag) => tag && query.includes(String(tag).toLowerCase()))
+    .slice(0, 3);
+
+  if (tagHits.length) {
+    return `命中标签：${tagHits.join("、")}`;
+  }
+
+  return `${contextCardTypeLabel(card.type)}卡片，适合补充当前任务上下文`;
+}
+
+function renderRecommendedContextCards() {
+  const cards = state.recommendedContextCards;
+  const selectedCount = cards.filter((card) => state.selectedContextCardIds.has(card.id)).length;
+  elements.recommendStatus.textContent = cards.length
+    ? `推荐 ${cards.length} 张，已挂载 ${selectedCount} 张`
+    : state.recommendationRan ? "未匹配到卡片" : "按任务描述匹配卡片";
+
+  if (!cards.length) {
+    elements.recommendedContextCards.innerHTML =
+      state.recommendationRan
+        ? '<div class="empty-state">暂时没有匹配到卡片，可以换几个更具体的关键词再试。</div>'
+        : '<div class="empty-state">输入任务描述后，可以自动找出适合挂载的上下文卡片。</div>';
+    return;
+  }
+
+  elements.recommendedContextCards.innerHTML = cards
+    .map((card, index) => {
+      const selected = state.selectedContextCardIds.has(card.id);
+      return `
+        <article class="recommend-card ${selected ? "is-mounted" : ""}">
+          <div class="recommend-rank">${String(index + 1).padStart(2, "0")}</div>
+          <div class="recommend-body">
+            <div class="resource-row">
+              <div>
+                <div class="resource-title">${escapeHtml(card.title)}</div>
+                <div class="resource-meta">${escapeHtml(recommendReason(card))}</div>
+              </div>
+              <button class="tiny-button ${selected ? "secondary-button" : ""}" type="button" data-recommend-card-id="${card.id}">
+                ${selected ? "取消挂载" : "挂载"}
+              </button>
+            </div>
+            <p class="recommend-preview">${escapeHtml(compactText(card.content))}</p>
+            <div class="tag-row">${renderTags(card.tags, contextCardTypeLabel(card.type))}</div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function historyCard(item) {
   const preview = item.final_prompt.length > 170
     ? `${item.final_prompt.slice(0, 170)}…`
@@ -1662,6 +1730,7 @@ function renderAll() {
   renderContextCardChoices();
   renderTemplates();
   renderContextCards();
+  renderRecommendedContextCards();
   renderHistory();
   updateWorkSurface();
 }
@@ -1679,6 +1748,8 @@ async function loadData() {
     state.templates = templates;
     state.contextCards = contextCards;
     state.history = history;
+    const contextCardIds = new Set(contextCards.map((card) => card.id));
+    state.recommendedContextCards = state.recommendedContextCards.filter((card) => contextCardIds.has(card.id));
     syncSelectedTemplate();
     renderAll();
     setApiStatus("已连接", "ok");
@@ -1772,6 +1843,52 @@ function hideOptimizeBox() {
   elements.optimizeBox.classList.add("is-hidden");
   elements.optimizedPrompt.value = "";
   elements.optimizeHint.textContent = "由 LLM 优化，不会自动覆盖原 Prompt。";
+}
+
+async function recommendContextCards() {
+  const text = elements.recommendText.value.trim();
+
+  if (!text) {
+    showToast("请先输入任务描述", true);
+    elements.recommendText.focus();
+    return;
+  }
+
+  try {
+    elements.recommendContextCardsButton.disabled = true;
+    elements.recommendStatus.textContent = "正在匹配...";
+
+    const cards = await requestJson("/api/context-cards/recommend", {
+      method: "POST",
+      body: JSON.stringify({ text, limit: 5 }),
+    });
+
+    state.recommendationText = text;
+    state.recommendationRan = true;
+    state.recommendedContextCards = cards;
+    renderRecommendedContextCards();
+    showToast(cards.length ? `已推荐 ${cards.length} 张上下文卡片` : "暂未匹配到卡片");
+  } catch (error) {
+    elements.recommendStatus.textContent = "推荐失败";
+    showToast(`推荐失败：${error.message}`, true);
+  } finally {
+    elements.recommendContextCardsButton.disabled = false;
+  }
+}
+
+function usePromptForRecommend() {
+  const template = getSelectedTemplate();
+  const variables = Object.values(collectVariables()).filter(Boolean).join("\n");
+  const text = elements.finalPrompt.value.trim()
+    || [template?.title, template?.description, template?.content, variables].filter(Boolean).join("\n");
+
+  if (!text.trim()) {
+    showToast("请先选择模板或输入任务描述", true);
+    return;
+  }
+
+  elements.recommendText.value = text.trim();
+  recommendContextCards();
 }
 
 async function previewPrompt() {
@@ -2373,6 +2490,21 @@ function bindEvents() {
   });
 
   elements.previewPromptButton.addEventListener("click", previewPrompt);
+  elements.recommendContextCardsButton.addEventListener("click", recommendContextCards);
+  elements.usePromptForRecommendButton.addEventListener("click", usePromptForRecommend);
+  elements.recommendedContextCards.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-recommend-card-id]");
+    if (!button) {
+      return;
+    }
+
+    const cardId = Number(button.dataset.recommendCardId);
+    if (state.selectedContextCardIds.has(cardId)) {
+      recallCard(cardId);
+    } else {
+      playCard(cardId);
+    }
+  });
   elements.savePromptButton.addEventListener("click", saveCurrentPrompt);
   elements.optimizePromptButton.addEventListener("click", optimizePrompt);
   elements.applyOptimizedButton.addEventListener("click", applyOptimizedPrompt);
@@ -2439,6 +2571,7 @@ function bindEvents() {
       }
       renderContextCardChoices();
       renderContextCards();
+      renderRecommendedContextCards();
       return;
     }
 
