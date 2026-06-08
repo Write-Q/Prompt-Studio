@@ -13,7 +13,7 @@ class TemplateNotFoundError(Exception):
     pass
 
 
-TEMPLATE_COLUMNS = "id, title, category, tags, content, description, created_at, updated_at"
+TEMPLATE_COLUMNS = "id, title, category, tags, content, description, is_favorite, created_at, updated_at"
 
 
 def _template_from_row(row: Row) -> PromptTemplateResponse:
@@ -24,6 +24,7 @@ def _template_from_row(row: Row) -> PromptTemplateResponse:
         tags=deserialize_tags(row["tags"]),
         content=row["content"],
         description=row["description"],
+        is_favorite=bool(row["is_favorite"]),
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -79,7 +80,7 @@ def list_templates(
         """
         params.extend([pattern, pattern, pattern, pattern])
 
-    sql += " ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?"
+    sql += " ORDER BY is_favorite DESC, updated_at DESC, id DESC LIMIT ? OFFSET ?"
     params.extend([max(1, min(limit, 500)), max(0, offset)])
 
     with get_connection() as connection:
@@ -120,6 +121,30 @@ def update_template(
                 serialize_tags(payload.tags),
                 payload.content,
                 payload.description,
+                current_time,
+                template_id,
+            ),
+        ).fetchone()
+        connection.commit()
+
+    if row is None:
+        raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
+
+    return _template_from_row(row)
+
+
+def set_template_favorite(template_id: int, is_favorite: bool) -> PromptTemplateResponse:
+    current_time = now_text()
+    with get_connection() as connection:
+        row = connection.execute(
+            f"""
+            UPDATE prompt_templates
+            SET is_favorite = ?, updated_at = ?
+            WHERE id = ?
+            RETURNING {TEMPLATE_COLUMNS}
+            """,
+            (
+                1 if is_favorite else 0,
                 current_time,
                 template_id,
             ),

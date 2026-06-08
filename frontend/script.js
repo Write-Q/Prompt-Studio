@@ -1,5 +1,7 @@
 const state = {
   templates: [],
+  templateMatches: [],
+  templateKeyword: "",
   contextCards: [],
   history: [],
   activeView: "dashboard",
@@ -494,6 +496,8 @@ const elements = {
   templateContent: document.querySelector("#templateContent"),
   saveTemplateButton: document.querySelector("#saveTemplateButton"),
   cancelTemplateEditButton: document.querySelector("#cancelTemplateEditButton"),
+  templateSearchInput: document.querySelector("#templateSearchInput"),
+  clearTemplateSearchButton: document.querySelector("#clearTemplateSearchButton"),
   templateListCount: document.querySelector("#templateListCount"),
   templateList: document.querySelector("#templateList"),
 
@@ -909,6 +913,47 @@ async function requestJson(url, options = {}) {
   }
 
   return response.json();
+}
+
+function templateMatchesKeyword(template, keyword) {
+  const normalized = keyword.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+
+  return [
+    template.title,
+    template.category,
+    template.description,
+    template.content,
+    ...(template.tags || []),
+  ]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(normalized));
+}
+
+function filterTemplatesLocally(keyword) {
+  return state.templates.filter((template) => templateMatchesKeyword(template, keyword));
+}
+
+async function loadTemplateMatches() {
+  const keyword = state.templateKeyword.trim();
+  if (!keyword) {
+    state.templateMatches = [...state.templates];
+    return;
+  }
+
+  const params = new URLSearchParams({ keyword });
+  state.templateMatches = await requestJson(`/api/templates?${params.toString()}`);
+}
+
+async function refreshTemplateMatches() {
+  try {
+    await loadTemplateMatches();
+  } catch (error) {
+    state.templateMatches = filterTemplatesLocally(state.templateKeyword);
+    showToast(`搜索接口暂不可用，已用本地数据筛选：${error.message}`, true);
+  }
 }
 
 function getSelectedTemplate() {
@@ -1569,20 +1614,39 @@ function recallCard(cardId) {
 }
 
 function renderTemplates() {
-  const templates = state.templates;
-  elements.templateListCount.textContent = `${templates.length} 个模板`;
+  const templates = state.templateMatches.length || state.templateKeyword
+    ? state.templateMatches
+    : state.templates;
+  const keyword = state.templateKeyword.trim();
+  elements.templateListCount.textContent = keyword
+    ? `${templates.length}/${state.templates.length} 个模板`
+    : `${templates.length} 个模板`;
 
   if (!templates.length) {
-    elements.templateList.innerHTML = '<div class="empty-state">暂无模板。试着新建一个常用任务模板。</div>';
+    elements.templateList.innerHTML = keyword
+      ? `<div class="empty-state">没有找到包含“${escapeHtml(keyword)}”的模板。</div>`
+      : '<div class="empty-state">暂无模板。试着新建一个常用任务模板。</div>';
     return;
   }
 
   elements.templateList.innerHTML = templates
     .map((item) => `
-      <article class="resource-card ${item.id === state.selectedTemplateId ? "active" : ""}" data-template-id="${item.id}">
+      <article class="resource-card template-card ${item.is_favorite ? "favorite" : ""} ${item.id === state.selectedTemplateId ? "active" : ""}" data-template-id="${item.id}">
         <div class="resource-row">
           <div>
-            <div class="resource-title">${escapeHtml(item.title)}</div>
+            <div class="resource-title-line">
+              <button
+                class="favorite-button ${item.is_favorite ? "active" : ""}"
+                type="button"
+                data-favorite-template-id="${item.id}"
+                data-next-favorite="${item.is_favorite ? "false" : "true"}"
+                aria-pressed="${item.is_favorite ? "true" : "false"}"
+                aria-label="${item.is_favorite ? "取消收藏模板" : "收藏模板"}"
+                title="${item.is_favorite ? "取消收藏" : "收藏模板"}"
+              >${item.is_favorite ? "★" : "☆"}</button>
+              <div class="resource-title">${escapeHtml(item.title)}</div>
+              ${item.is_favorite ? '<span class="favorite-badge">已收藏</span>' : ""}
+            </div>
             <div class="resource-meta">${escapeHtml(item.description || item.content.slice(0, 86))}</div>
           </div>
           <div class="resource-actions">
@@ -1748,6 +1812,7 @@ async function loadData() {
     state.templates = templates;
     state.contextCards = contextCards;
     state.history = history;
+    await loadTemplateMatches();
     const contextCardIds = new Set(contextCards.map((card) => card.id));
     state.recommendedContextCards = state.recommendedContextCards.filter((card) => contextCardIds.has(card.id));
     syncSelectedTemplate();
@@ -1757,6 +1822,7 @@ async function loadData() {
   } catch (error) {
     if (!state.templates.length) {
       state.templates = fallbackTemplates;
+      state.templateMatches = filterTemplatesLocally(state.templateKeyword);
       state.contextCards = fallbackContextCards;
       state.history = [];
       syncSelectedTemplate();
@@ -2088,6 +2154,39 @@ async function saveTemplate(event) {
     resetTemplateForm();
     await loadData();
     showToast(isEditing ? "模板已更新" : "模板已保存");
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
+async function applyTemplateSearch() {
+  state.templateKeyword = elements.templateSearchInput.value.trim();
+  await refreshTemplateMatches();
+  renderTemplates();
+}
+
+function scheduleTemplateSearch() {
+  window.clearTimeout(scheduleTemplateSearch.timer);
+  scheduleTemplateSearch.timer = window.setTimeout(() => {
+    applyTemplateSearch();
+  }, 220);
+}
+
+async function toggleTemplateFavorite(templateId, isFavorite) {
+  try {
+    const updated = await requestJson(`/api/templates/${templateId}/favorite`, {
+      method: "PATCH",
+      body: JSON.stringify({ is_favorite: isFavorite }),
+    });
+
+    state.templates = state.templates.map((item) => item.id === updated.id ? updated : item);
+    await refreshTemplateMatches();
+    syncSelectedTemplate();
+    renderStats();
+    renderTemplateSelect();
+    renderTemplates();
+    updateWorkSurface();
+    showToast(isFavorite ? "模板已收藏" : "已取消收藏");
   } catch (error) {
     showToast(error.message, true);
   }
@@ -2519,14 +2618,28 @@ function bindEvents() {
 
   elements.templateForm.addEventListener("submit", saveTemplate);
   elements.cancelTemplateEditButton.addEventListener("click", resetTemplateForm);
+  elements.templateSearchInput.addEventListener("input", scheduleTemplateSearch);
+  elements.clearTemplateSearchButton.addEventListener("click", async () => {
+    elements.templateSearchInput.value = "";
+    await applyTemplateSearch();
+    elements.templateSearchInput.focus();
+  });
   elements.contextCardForm.addEventListener("submit", saveContextCard);
   elements.cancelContextCardEditButton.addEventListener("click", resetContextCardForm);
 
   elements.templateList.addEventListener("click", (event) => {
     const useButton = event.target.closest("[data-use-template-id]");
+    const favoriteButton = event.target.closest("[data-favorite-template-id]");
     const editButton = event.target.closest("[data-edit-template-id]");
     const deleteButton = event.target.closest("[data-delete-template-id]");
     const card = event.target.closest("[data-template-id]");
+
+    if (favoriteButton) {
+      const templateId = Number(favoriteButton.dataset.favoriteTemplateId);
+      const isFavorite = favoriteButton.dataset.nextFavorite === "true";
+      toggleTemplateFavorite(templateId, isFavorite);
+      return;
+    }
 
     if (useButton) {
       state.selectedTemplateId = Number(useButton.dataset.useTemplateId);
@@ -2546,6 +2659,7 @@ function bindEvents() {
       const templateId = Number(deleteButton.dataset.deleteTemplateId);
       deleteItem(`/api/templates/${templateId}`, "模板已删除", () => {
         state.templates = state.templates.filter((item) => item.id !== templateId);
+        state.templateMatches = state.templateMatches.filter((item) => item.id !== templateId);
       });
       return;
     }

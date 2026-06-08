@@ -62,8 +62,13 @@ class PromptTemplateCreate(PromptTemplateBase): pass
 class PromptTemplateUpdate(PromptTemplateBase): pass
 
 
+class PromptTemplateFavoriteUpdate(BaseModel):
+    is_favorite: bool
+
+
 class PromptTemplateResponse(PromptTemplateBase):
     id: int
+    is_favorite: bool = False
     created_at: str
     updated_at: str
 

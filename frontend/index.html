@@ -298,9 +298,16 @@
               <div class="panel-head">
                 <div>
                   <h2>模板清单</h2>
-                  <p>选中模板后会同步到快速生成区。</p>
+                  <p>选中模板后会同步到快速生成区，收藏模板会优先显示。</p>
                 </div>
                 <span id="templateListCount" class="panel-count">0 个模板</span>
+              </div>
+              <div class="library-toolbar">
+                <label class="search-field">
+                  搜索模板
+                  <input id="templateSearchInput" name="template_search" type="search" autocomplete="off" placeholder="按标题、说明、标签或内容搜索">
+                </label>
+                <button id="clearTemplateSearchButton" class="secondary-button compact-button" type="button">清空</button>
               </div>
               <div id="templateList" class="resource-list"></div>
             </article>

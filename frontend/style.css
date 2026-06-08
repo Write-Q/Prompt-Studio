@@ -883,6 +883,23 @@ code {
   gap: 12px;
 }
 
+.library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.search-field {
+  min-width: 0;
+}
+
+.compact-button {
+  min-height: 44px;
+  padding-inline: 14px;
+}
+
 .section-layout .resource-list {
   max-height: clamp(380px, 58vh, 660px);
   overflow: auto;
@@ -1365,6 +1382,13 @@ output {
   box-shadow: 3px 3px 0 var(--accent);
 }
 
+.template-card.favorite {
+  border-color: #c69a36;
+  background:
+    linear-gradient(90deg, rgba(244, 198, 106, 0.26), transparent 52%),
+    #fffaf0;
+}
+
 .resource-row,
 .record-row {
   display: flex;
@@ -1381,6 +1405,52 @@ output {
 .resource-title,
 .record-title {
   font-weight: 950;
+}
+
+.resource-title-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.resource-title-line .resource-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.favorite-button {
+  display: inline-grid;
+  flex: 0 0 32px;
+  width: 32px;
+  min-height: 32px;
+  padding: 0;
+  place-items: center;
+  color: #6a4a0d;
+  background: #fff8ea;
+  border-color: #d5ad55;
+  box-shadow: 2px 2px 0 rgba(47, 40, 31, 0.18);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.favorite-button:hover,
+.favorite-button.active {
+  color: #29221b;
+  background: var(--warning);
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.favorite-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  color: #4b2b12;
+  background: #ffe7ba;
+  border: 1px solid #d6a84e;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
 }
 
 .resource-meta,
@@ -1846,6 +1916,7 @@ output {
   .quick-form,
   .field-row,
   .variable-grid,
+  .library-toolbar,
   .resource-row,
   .record-row,
   .recommend-card {

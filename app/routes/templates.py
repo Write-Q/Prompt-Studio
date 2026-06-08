@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query, status
 
 from app.models.schemas import (
     PromptTemplateCreate,
+    PromptTemplateFavoriteUpdate,
     PromptTemplateResponse,
     PromptTemplateUpdate,
 )
@@ -10,6 +11,7 @@ from app.services.template_service import (
     delete_template,
     get_template_by_id,
     list_templates,
+    set_template_favorite,
     update_template,
 )
 
@@ -43,6 +45,14 @@ def update_template_item(
     payload: PromptTemplateUpdate,
 ) -> PromptTemplateResponse:
     return update_template(template_id, payload)
+
+
+@router.patch("/{template_id}/favorite", response_model=PromptTemplateResponse)
+def update_template_favorite_item(
+    template_id: int,
+    payload: PromptTemplateFavoriteUpdate,
+) -> PromptTemplateResponse:
+    return set_template_favorite(template_id, payload.is_favorite)
 
 
 @router.delete("/{template_id}")
