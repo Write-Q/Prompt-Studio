@@ -479,6 +479,7 @@ const elements = {
   promptHint: document.querySelector("#promptHint"),
   optimizePromptButton: document.querySelector("#optimizePromptButton"),
   optimizeBox: document.querySelector("#optimizeBox"),
+  optimizeLoading: document.querySelector("#optimizeLoading"),
   optimizeHint: document.querySelector("#optimizeHint"),
   optimizedPrompt: document.querySelector("#optimizedPrompt"),
   applyOptimizedButton: document.querySelector("#applyOptimizedButton"),
@@ -1909,6 +1910,19 @@ function hideOptimizeBox() {
   elements.optimizeBox.classList.add("is-hidden");
   elements.optimizedPrompt.value = "";
   elements.optimizeHint.textContent = "由 LLM 优化，不会自动覆盖原 Prompt。";
+  setOptimizeLoading(false);
+}
+
+function setOptimizeLoading(isLoading) {
+  elements.optimizeBox.classList.toggle("is-optimizing", isLoading);
+  elements.optimizeLoading.classList.toggle("is-hidden", !isLoading);
+  elements.optimizedPrompt.placeholder = isLoading
+    ? "正在优化 Prompt，请稍候…"
+    : "优化后的 Prompt 会显示在这里…";
+
+  const hasOptimizedPrompt = Boolean(elements.optimizedPrompt.value.trim());
+  elements.applyOptimizedButton.disabled = isLoading || !hasOptimizedPrompt;
+  elements.copyOptimizedButton.disabled = isLoading || !hasOptimizedPrompt;
 }
 
 async function recommendContextCards() {
@@ -2053,7 +2067,9 @@ async function optimizePrompt() {
     elements.optimizePromptButton.disabled = true;
     setWorkflowStep("optimize");
     elements.optimizeHint.textContent = "正在调用 LLM 优化 Prompt…";
+    elements.optimizedPrompt.value = "";
     elements.optimizeBox.classList.remove("is-hidden");
+    setOptimizeLoading(true);
     setCatMood("正在把预生成 Prompt 打磨得更清楚。", "working");
 
     const result = await requestJson("/api/llm/optimize-prompt", {
@@ -2073,6 +2089,7 @@ async function optimizePrompt() {
     elements.optimizeHint.textContent = error.message;
     showToast(error.message, true);
   } finally {
+    setOptimizeLoading(false);
     elements.optimizePromptButton.disabled = false;
   }
 }

@@ -827,6 +827,10 @@ code {
   box-shadow: 4px 4px 0 var(--line);
 }
 
+.result-panel {
+  align-self: start;
+}
+
 .panel-head {
   display: flex;
   align-items: flex-start;
@@ -1559,14 +1563,80 @@ output {
 
 .optimize-box {
   display: grid;
-  gap: 12px;
-  margin-top: 14px;
-  padding-top: 14px;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 2px dashed var(--line);
 }
 
+.optimize-loading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 12px;
+  align-items: center;
+  padding: 11px 12px;
+  color: #4b2b12;
+  background:
+    linear-gradient(90deg, rgba(217, 115, 49, 0.08) 1px, transparent 1px),
+    #fff0cb;
+  background-size: 16px 16px;
+  border: 2px solid #e6bf7a;
+  border-radius: var(--radius);
+  box-shadow: 3px 3px 0 rgba(217, 115, 49, 0.24);
+}
+
+.optimize-loading strong,
+.optimize-loading small {
+  min-width: 0;
+}
+
+.optimize-loading strong {
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.optimize-loading small {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.optimize-loader {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.optimize-loader i {
+  width: 10px;
+  height: 18px;
+  background: var(--accent);
+  border: 2px solid var(--line);
+  box-shadow: 2px 2px 0 rgba(47, 40, 31, 0.18);
+  animation: optimizeBars 0.82s steps(2) infinite;
+}
+
+.optimize-loader i:nth-child(2) {
+  height: 24px;
+  background: var(--mint);
+  animation-delay: 0.12s;
+}
+
+.optimize-loader i:nth-child(3) {
+  height: 14px;
+  background: var(--warning);
+  animation-delay: 0.24s;
+}
+
+.optimize-box.is-optimizing #optimizedPrompt {
+  cursor: progress;
+  opacity: 0.68;
+}
+
 #optimizedPrompt {
-  min-height: 260px;
+  height: clamp(220px, 30vh, 310px);
+  min-height: 220px;
   background:
     linear-gradient(rgba(47, 40, 31, 0.045) 1px, transparent 1px),
     #fff4dc;
@@ -1802,6 +1872,17 @@ output {
 
   100% {
     transform: translateX(170%);
+  }
+}
+
+@keyframes optimizeBars {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
   }
 }
 

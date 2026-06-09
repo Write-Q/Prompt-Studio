@@ -241,6 +241,15 @@
                   <span>优化稿</span>
                   <small id="optimizeHint">由 LLM 优化，不会自动覆盖原 Prompt。</small>
                 </div>
+                <div id="optimizeLoading" class="optimize-loading is-hidden" role="status" aria-live="polite">
+                  <span class="optimize-loader" aria-hidden="true">
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                  </span>
+                  <strong>正在优化 Prompt</strong>
+                  <small>等待模型返回完整优化稿…</small>
+                </div>
                 <textarea id="optimizedPrompt" name="optimized_prompt" readonly aria-label="优化稿" placeholder="优化后的 Prompt 会显示在这里…"></textarea>
                 <div class="button-row">
                   <button id="applyOptimizedButton" type="button">采用优化稿</button>
