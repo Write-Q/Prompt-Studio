@@ -65,7 +65,6 @@ $env:DEEPSEEK_API_KEY="你的 DeepSeek API Key"
 | `/api/generate` | POST | 预生成 Prompt（规则组装，不写历史） |
 | `/api/history` | GET / POST | 历史列表（支持 `limit`）/ 手动保存 |
 | `/api/history/{id}` | GET / DELETE | 单条详情 / 删除 |
-| `/api/llm/answer` | POST | 同步获取大模型回答 |
 | `/api/llm/answer/stream` | POST | 流式获取大模型回答 |
 | `/api/llm/optimize-prompt` | POST | 优化 Prompt |
 

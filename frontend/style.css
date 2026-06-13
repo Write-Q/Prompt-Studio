@@ -745,6 +745,15 @@ code {
   gap: 18px;
 }
 
+.dashboard-grid {
+  align-items: stretch;
+}
+
+.dashboard-grid > .panel {
+  align-self: stretch;
+  height: 100%;
+}
+
 .workflow-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -792,6 +801,7 @@ code {
 
 @media (max-width: 1320px) {
   .dashboard-grid {
+    align-items: start;
     grid-template-columns: 1fr;
   }
 }
@@ -808,13 +818,18 @@ code {
 }
 
 .section-layout {
-  align-items: start;
+  align-items: stretch;
 }
 
 .section-layout .editor-panel {
-  align-self: start;
+  align-self: stretch;
   position: sticky;
   top: 18px;
+}
+
+.section-layout > .panel {
+  height: 100%;
+  min-height: min(660px, calc(100vh - 190px));
 }
 
 .section-layout .library-panel {
@@ -828,7 +843,26 @@ code {
 }
 
 .result-panel {
-  align-self: start;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.builder-panel {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.builder-panel .builder-section:last-of-type {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.builder-panel .builder-section:last-of-type .poker-zone {
+  flex: 1 1 auto;
 }
 
 .panel-head {
@@ -913,6 +947,7 @@ code {
 }
 
 .prompt-action-note {
+  flex: 0 0 auto;
   margin-top: 10px;
   color: var(--ink-soft);
   font-size: 13px;
@@ -1554,6 +1589,7 @@ output {
 }
 
 #finalPrompt {
+  flex: 1 1 auto;
   min-height: 510px;
   background:
     linear-gradient(rgba(47, 40, 31, 0.045) 1px, transparent 1px),
@@ -1561,12 +1597,34 @@ output {
   background-size: 100% 32px;
 }
 
+.prompt-preview-box {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .optimize-box {
-  display: grid;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
   gap: 10px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 2px dashed var(--line);
+}
+
+.result-panel:has(.optimize-box:not(.is-hidden)) .prompt-preview-box,
+.result-panel:has(.optimize-box:not(.is-hidden)) .optimize-box {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.result-panel:has(.optimize-box:not(.is-hidden)) #finalPrompt,
+.result-panel:has(.optimize-box:not(.is-hidden)) #optimizedPrompt {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 260px;
 }
 
 .optimize-loading {
@@ -1965,11 +2023,17 @@ output {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-grid > .panel,
+  .section-layout > .panel {
+    height: auto;
+  }
+
   .workflow-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .section-layout .editor-panel {
+    align-self: start;
     position: static;
   }
 

@@ -234,8 +234,10 @@
                   <button id="pushToAiButton" class="secondary-button" type="button">送去 AI</button>
                 </div>
               </div>
-              <textarea id="finalPrompt" name="final_prompt_preview" readonly aria-label="预生成 Prompt" placeholder="等待预览 Prompt…"></textarea>
-              <div class="prompt-action-note">预生成只更新这里，保存历史必须由你手动点击。</div>
+              <div class="prompt-preview-box">
+                <textarea id="finalPrompt" name="final_prompt_preview" readonly aria-label="预生成 Prompt" placeholder="等待预览 Prompt…"></textarea>
+                <div class="prompt-action-note">预生成只更新这里，保存历史必须由你手动点击。</div>
+              </div>
               <div id="optimizeBox" class="optimize-box is-hidden">
                 <div class="section-title">
                   <span>优化稿</span>

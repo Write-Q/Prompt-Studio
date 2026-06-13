@@ -6,7 +6,6 @@ from openai import OpenAI, OpenAIError
 
 from app.models.schemas import (
     LlmAnswerRequest,
-    LlmAnswerResponse,
     PromptOptimizeRequest,
     PromptOptimizeResponse,
 )
@@ -71,17 +70,6 @@ def build_prompt_optimizer_messages(prompt: str) -> list[dict[str, str]]:
         {"role": "system", "content": PROMPT_OPTIMIZER_SYSTEM_PROMPT},
         {"role": "user", "content": f"请优化下面的 Prompt：\n\n{prompt}"},
     ]
-
-
-def ask_deepseek(payload: LlmAnswerRequest) -> LlmAnswerResponse:
-    answer = _post_chat_completion(
-        {
-            "model": payload.model,
-            "messages": [{"role": "user", "content": payload.prompt}],
-            "temperature": payload.temperature,
-        }
-    )
-    return LlmAnswerResponse(model=payload.model, answer=answer)
 
 
 def optimize_prompt(payload: PromptOptimizeRequest) -> PromptOptimizeResponse:

@@ -23,11 +23,6 @@ build/
 
 .DS_Store
 Thumbs.db
-.superpowers/
-
-# Claude / 项目内部说明文档
-AGENTS.md
-CLAUDE.md
 docs/
 tests/
 答辩材料/

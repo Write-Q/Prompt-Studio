@@ -3,19 +3,13 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import (
     LlmAnswerRequest,
-    LlmAnswerResponse,
     PromptOptimizeRequest,
     PromptOptimizeResponse,
 )
-from app.services.llm_service import ask_deepseek, optimize_prompt, stream_deepseek_answer
+from app.services.llm_service import optimize_prompt, stream_deepseek_answer
 
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
-
-
-@router.post("/answer", response_model=LlmAnswerResponse)
-def create_llm_answer(payload: LlmAnswerRequest) -> LlmAnswerResponse:
-    return ask_deepseek(payload)
 
 
 @router.post("/answer/stream")

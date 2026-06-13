@@ -171,11 +171,6 @@ class LlmAnswerRequest(BaseModel):
         return clean_required(value)
 
 
-class LlmAnswerResponse(BaseModel):
-    model: str
-    answer: str
-
-
 class PromptOptimizeRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     model: str = "deepseek-v4-flash"

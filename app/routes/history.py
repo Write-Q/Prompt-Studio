@@ -24,16 +24,6 @@ def create_history_item(payload: GenerationHistoryCreate) -> GenerationHistoryRe
     return create_history(payload)
 
 
-@router.post(
-    "/",
-    response_model=GenerationHistoryResponse,
-    status_code=status.HTTP_201_CREATED,
-    include_in_schema=False,
-)
-def create_history_item_with_slash(payload: GenerationHistoryCreate) -> GenerationHistoryResponse:
-    return create_history_item(payload)
-
-
 @router.get("/{history_id}", response_model=GenerationHistoryResponse)
 def get_history_detail(history_id: int) -> GenerationHistoryResponse:
     return get_history_by_id(history_id)
