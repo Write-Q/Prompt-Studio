@@ -3140,3 +3140,415 @@ body.poker-is-dragging * {
     transition: opacity 100ms linear !important;
   }
 }
+
+/* ===== Tool Use 智能助手面板 ===== */
+.agent-panel .agent-result {
+  margin-top: 14px;
+}
+
+.agent-panel #agentAnswer {
+  min-height: 160px;
+}
+
+.agent-allow-write {
+  display: flex;               /* 整行铺满，和输入区一样宽 */
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 1px 12px;           /* 只压扁高度 */
+  line-height: 1;              /* 去掉行高富余，进一步压扁 */
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--paper-strong);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 3px 3px 0 var(--line-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: box-shadow 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+
+.agent-allow-write:hover {
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+/* 开启写权限时，整行变成警示色，一眼看出"危险模式"已打开 */
+.agent-allow-write:has(input:checked) {
+  border-color: var(--accent-dark);
+  background: #fdeede;
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+/* 自定义复选框：隐藏原生外观，画成像素小方块 */
+.agent-allow-write input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  align-self: center;          /* 不随行高被纵向拉伸 */
+  width: 12px;
+  height: 12px;
+  min-height: 0;               /* 压掉可能继承的 min-height */
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.agent-allow-write input:checked {
+  background: var(--accent);
+}
+
+.agent-allow-write input:checked::after {
+  content: "✓";
+  color: var(--paper-strong);
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.agent-allow-write input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.agent-allow-write__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agent-allow-write__text strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.agent-allow-write__text small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+/* ===== 多轮会话 ===== */
+.agent-convo-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 12px 0;
+}
+
+.agent-convo-bar select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.agent-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 14px;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-soft);
+  box-shadow: inset 2px 2px 0 var(--line-soft);
+}
+
+.chat-bubble {
+  max-width: 82%;
+  padding: 8px 12px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-bubble b {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 3px;
+  opacity: 0.6;
+}
+
+.chat-bubble--user {
+  align-self: flex-end;
+  background: var(--warning);
+  box-shadow: 3px 3px 0 var(--line-soft);
+}
+
+.chat-bubble--assistant {
+  align-self: flex-start;
+  background: var(--paper-strong);
+  box-shadow: 3px 3px 0 var(--line-soft);
+}
+
+.chat-bubble__body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.agent-trace-block {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed var(--line-soft);
+}
+
+.ai-controls-panel {
+  margin-bottom: 16px;
+}
+
+/* ===== 主流 AI 风格布局 ===== */
+.agent-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 2px dashed var(--line-soft);
+}
+
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.agent-field > span {
+  white-space: nowrap;
+}
+
+.agent-field--convo {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.agent-field--temp {
+  width: 150px;
+}
+
+.agent-field--temp input[type="range"] {
+  width: 100%;
+}
+
+/* 模型/会话用项目统一的自定义下拉(.custom-select)，此处只定宽度 */
+.agent-field--model {
+  flex: 0 0 190px;
+}
+
+.agent-field .custom-select-trigger {
+  min-height: 42px;
+}
+
+.agent-header__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.agent-panel .agent-chat {
+  min-height: 320px;
+  max-height: 52vh;
+}
+
+.agent-composer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 2px dashed var(--line-soft);
+}
+
+.agent-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 10px;
+}
+
+.agent-input-row textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  resize: vertical;
+}
+
+.agent-input-row button {
+  flex: 0 0 auto;
+  padding-left: 22px;
+  padding-right: 22px;
+}
+
+/* 生成后的快捷操作:保存 / 润色 / 完成 */
+.agent-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 4px;
+  padding: 8px 12px;
+  background: #fff0cb;
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 3px 3px 0 var(--line-soft);
+}
+
+.agent-quick-actions__label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.agent-quick-actions.is-hidden {
+  display: none;
+}
+
+/* ① 复制按钮(hover 出现) */
+.chat-bubble {
+  position: relative;
+}
+
+.chat-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  box-shadow: none;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+
+.chat-bubble:hover .chat-copy {
+  opacity: 1;
+}
+
+/* ② 空态示例 */
+.agent-empty p {
+  margin: 0;
+}
+
+.agent-examples {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.agent-example {
+  min-height: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* ③ 流式光标 */
+.chat-bubble.is-streaming .chat-bubble__body::after {
+  content: "▋";
+  margin-left: 1px;
+  animation: agent-blink 1s steps(2, start) infinite;
+}
+
+@keyframes agent-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* ④ 工具轨迹:摘要 + 折叠原始数据 */
+.agent-trace-summary {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.agent-trace-raw {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.agent-trace-raw > summary {
+  cursor: pointer;
+}
+
+.agent-trace-raw pre {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--paper-soft);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+
+.agent-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.agent-trace-item {
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  background: var(--paper-strong);
+  box-shadow: 3px 3px 0 var(--line-soft);
+  padding: 10px 12px;
+}
+
+.agent-trace-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.agent-trace-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  font-weight: 800;
+  color: var(--paper-strong);
+  background: var(--accent);
+  border: 2px solid var(--line);
+  border-radius: 5px;
+}
+
+.agent-trace-head code {
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+
+.agent-trace-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  padding: 2px 0;
+}
+
+.agent-trace-row b {
+  flex: 0 0 38px;
+  color: var(--ink);
+}
+
+.agent-trace-row span {
+  flex: 1 1 auto;
+  word-break: break-word;
+  white-space: pre-wrap;
+  font-family: "Inter", "Consolas", monospace;
+}

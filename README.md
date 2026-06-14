@@ -67,6 +67,7 @@ $env:DEEPSEEK_API_KEY="你的 DeepSeek API Key"
 | `/api/history/{id}` | GET / DELETE | 单条详情 / 删除 |
 | `/api/llm/answer/stream` | POST | 流式获取大模型回答 |
 | `/api/llm/optimize-prompt` | POST | 优化 Prompt |
+| `/api/llm/chat` | POST | 带工具调用（Tool Use）的对话，模型可自动检索模板 / 上下文卡片 |
 
 ## 上下文卡片类型
 
@@ -102,8 +103,14 @@ requirements.txt
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
-.\.venv\Scripts\python.exe -m compileall app seed_test_data.py
+.\.venv\Scripts\python.exe -m compileall app seed_test_data.py verify_tool_use.py
 node --check frontend\script.js
+```
+
+Tool Use（函数调用）联网验证（需配置 `DEEPSEEK_API_KEY`，建议先跑 `seed_test_data.py` 准备数据）：
+
+```powershell
+.\.venv\Scripts\python.exe verify_tool_use.py
 ```
 
 > `tests/` 目录已被 `.gitignore` 忽略，不随仓库分发。本地保留即可跑测试；如需获取测试套件可从历史 commit `86b6d13` 之前的版本中提取。
@@ -119,3 +126,22 @@ node --check frontend\script.js
 ```
 
 数据库默认位置：`data/app.db`（首次启动自动创建）。
+
+## 可分发的种子数据（开箱即用）
+
+为了让别人本地部署时直接获得数据，种子数据以 JSON 文本存放在 `seed/` 目录（进 git、可无限扩充），数据库本身（`data/*.db`）不入库。
+
+- **首次启动自动灌入**：`app.main` 启动时调用 `seed_if_empty()`，若库为空则从 `seed/*.json` 灌入；库里已有数据则跳过，不会覆盖用户后续添加的内容。
+- **维护数据的两个方向**：
+
+```powershell
+# 把当前数据库导出成 seed/*.json（在 UI 里编辑数据后，导出成可分发的种子）
+.\.venv\Scripts\python.exe -m app.seed --export
+
+# 手动灌入（库为空时生效，等同于首次启动的行为）
+.\.venv\Scripts\python.exe -m app.seed
+```
+
+别人拿到项目后：`uvicorn app.main:app` 一跑，空库会自动从 `seed/` 灌好数据，开箱即用。
+
+> 数据量很大时，再决定 `seed/` 的分发方式：几十 MB 内可直接进 git；几百 MB 用 Git LFS 或挂 GitHub Release；GB 级则考虑首次运行下载或只发子集。机制本身不变。

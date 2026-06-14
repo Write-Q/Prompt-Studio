@@ -65,9 +65,29 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_context_cards_type
             ON context_cards(type);
+
+            CREATE TABLE IF NOT EXISTS conversation_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                created_at TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_conv_messages_cid
+            ON conversation_messages(conversation_id, id);
             """
         )
+        _ensure_column(connection, "context_cards", "embedding", "TEXT")
+        _ensure_column(connection, "prompt_templates", "embedding", "TEXT")
         connection.commit()
+
+
+def _ensure_column(connection, table: str, column: str, coltype: str) -> None:
+    """幂等加列:已有库也能补上新列(SQLite ALTER 不支持 IF NOT EXISTS)。"""
+    existing = [row[1] for row in connection.execute(f"PRAGMA table_info({table})").fetchall()]
+    if column not in existing:
+        connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {coltype}")
 
 
 if __name__ == "__main__":

@@ -7,15 +7,17 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
+from app.seed import seed_if_empty
 from app.routes.context_cards import router as context_cards_router
+from app.routes.conversations import router as conversations_router
 from app.routes.generate import router as generate_router
 from app.routes.history import router as history_router
 from app.routes.llm import router as llm_router
 from app.routes.templates import router as templates_router
-from app.services.context_card_service import ContextCardNotFoundError
+from app.services.context_card_service import ContextCardNotFoundError, backfill_card_embeddings
 from app.services.history_service import HistoryNotFoundError
 from app.services.llm_service import LlmConfigError, LlmRequestError
-from app.services.template_service import TemplateNotFoundError
+from app.services.template_service import TemplateNotFoundError, backfill_template_embeddings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,6 +27,12 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
+    seed_if_empty()  # 首次启动且库为空时，自动从 seed/*.json 灌入数据
+    try:
+        backfill_card_embeddings()  # 给缺向量的卡片(如刚灌的种子)补上 embedding;无缺失则零成本
+        backfill_template_embeddings()  # 模板同理
+    except Exception:  # noqa: BLE001 - 模型不可用时不应阻断启动
+        pass
     yield
 
 
@@ -40,6 +48,7 @@ app.include_router(context_cards_router)
 app.include_router(generate_router)
 app.include_router(history_router)
 app.include_router(llm_router)
+app.include_router(conversations_router)
 app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 

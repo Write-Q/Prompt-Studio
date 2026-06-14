@@ -51,7 +51,9 @@ def create_context_card(payload: ContextCardCreate) -> ContextCardResponse:
             ),
         ).fetchone()
         connection.commit()
-    return _card_from_row(row)
+    card = _card_from_row(row)
+    _set_card_embedding_safe(card.id, _card_embed_text(card))
+    return card
 
 
 def list_context_cards(
@@ -86,33 +88,75 @@ def list_context_cards(
     return [_card_from_row(row) for row in rows]
 
 
-def _ngrams(text: str, min_size: int = 2, max_size: int = 4) -> set[str]:
-    text = "".join(text.lower().split())
-    return {
-        text[index : index + size]
-        for size in range(min_size, max_size + 1)
-        for index in range(max(0, len(text) - size + 1))
-    }
+def recommend_context_cards(payload: ContextCardRecommendRequest) -> list[ContextCardResponse]:
+    """语义检索:查询向量与各卡片向量算余弦，过滤掉低于阈值的弱匹配，取前 limit 张。"""
+    from app.services.embedding import (
+        SIMILARITY_THRESHOLD,
+        deserialize_vector,
+        embed,
+        top_k_by_cosine,
+    )
 
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT {CONTEXT_CARD_COLUMNS}, embedding FROM context_cards WHERE embedding IS NOT NULL"
+        ).fetchall()
 
-def _recommend_score(card: ContextCardResponse, text: str) -> int:
-    query = "".join(text.lower().split())
-    tags = [tag.lower() for tag in card.tags]
-    title_terms = _ngrams(card.title)
-    content_terms = _ngrams(card.content)
-    return (
-        sum(5 for tag in tags if tag and tag in query)
-        + sum(3 for term in title_terms if term in query)
-        + sum(1 for term in content_terms if term in query)
+    candidates = []
+    for row in rows:
+        vector = deserialize_vector(row["embedding"])
+        if vector:
+            candidates.append((_card_from_row(row), vector))
+    if not candidates:
+        return []
+
+    query_vector = embed(payload.text, is_query=True)
+    return top_k_by_cosine(
+        query_vector, candidates, payload.limit, min_score=SIMILARITY_THRESHOLD
     )
 
 
-def recommend_context_cards(payload: ContextCardRecommendRequest) -> list[ContextCardResponse]:
-    cards = list_context_cards(limit=500)
-    scored = [(_recommend_score(card, payload.text), card) for card in cards]
-    matches = [(score, card) for score, card in scored if score > 0]
-    matches.sort(key=lambda item: (-item[0], item[1].id))
-    return [card for _, card in matches[: payload.limit]]
+def _card_embed_text(card: ContextCardResponse) -> str:
+    return f"{card.title}\n{card.content}"
+
+
+def _set_card_embedding_safe(card_id: int, text: str) -> None:
+    """给单张卡片写 embedding；失败(模型没装/出错)也不阻断创建/更新。"""
+    try:
+        from app.services.embedding import embed, serialize_vector
+
+        vector = serialize_vector(embed(text))
+        with get_connection() as connection:
+            connection.execute(
+                "UPDATE context_cards SET embedding = ? WHERE id = ?", (vector, card_id)
+            )
+            connection.commit()
+    except Exception:  # noqa: BLE001 - embedding 是增强项，不该影响主流程
+        pass
+
+
+def backfill_card_embeddings() -> int:
+    """给所有还没有 embedding 的卡片批量补上。返回补的条数。"""
+    from app.services.embedding import embed_documents, serialize_vector
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT {CONTEXT_CARD_COLUMNS} FROM context_cards WHERE embedding IS NULL"
+        ).fetchall()
+
+    cards = [_card_from_row(row) for row in rows]
+    if not cards:
+        return 0
+
+    vectors = embed_documents([_card_embed_text(card) for card in cards])
+    with get_connection() as connection:
+        for card, vector in zip(cards, vectors):
+            connection.execute(
+                "UPDATE context_cards SET embedding = ? WHERE id = ?",
+                (serialize_vector(vector), card.id),
+            )
+        connection.commit()
+    return len(cards)
 
 
 def get_context_card_by_id(card_id: int) -> ContextCardResponse:
@@ -152,7 +196,9 @@ def update_context_card(card_id: int, payload: ContextCardUpdate) -> ContextCard
     if row is None:
         raise ContextCardNotFoundError(f"ID 为 {card_id} 的上下文卡片不存在")
 
-    return _card_from_row(row)
+    card = _card_from_row(row)
+    _set_card_embedding_safe(card.id, _card_embed_text(card))
+    return card
 
 
 def delete_context_card(card_id: int) -> bool:

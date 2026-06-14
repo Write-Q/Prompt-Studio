@@ -185,3 +185,43 @@ class PromptOptimizeRequest(BaseModel):
 class PromptOptimizeResponse(BaseModel):
     model: str
     optimized_prompt: str
+
+
+class LlmChatRequest(BaseModel):
+    prompt: str = Field(..., min_length=1)
+    model: str = "deepseek-v4-flash"
+    temperature: float = Field(default=0.7, ge=0, le=2)
+    allow_write: bool = False  # 是否授权模型执行写操作(如创建卡片)
+    conversation_id: str | None = None  # 会话 ID;为空则新建一个会话
+
+    @field_validator("prompt", "model")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        return clean_required(value)
+
+
+class LlmToolCall(BaseModel):
+    name: str
+    arguments: dict
+    result: str
+
+
+class LlmChatResponse(BaseModel):
+    model: str
+    answer: str
+    rounds: int
+    conversation_id: str
+    tool_calls: list[LlmToolCall] = Field(default_factory=list)
+
+
+class ConversationSummary(BaseModel):
+    conversation_id: str
+    title: str | None = None
+    message_count: int
+    updated_at: str | None = None
+
+
+class ConversationMessage(BaseModel):
+    role: str
+    content: str
+    created_at: str | None = None

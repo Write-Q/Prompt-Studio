@@ -6,7 +6,7 @@
   <title>PromptStudio | 像素提示词工作室</title>
   <link rel="preconnect" href="https://fonts.loli.net" crossorigin>
   <link rel="stylesheet" href="https://fonts.loli.net/css2?family=Inter:wght@400;500;700&family=Noto+Serif+SC:wght@700;900&display=swap">
-  <link rel="stylesheet" href="./style.css?v=visual-system-v1">
+  <link rel="stylesheet" href="./style.css?v=polish-v1">
 </head>
 <body>
   <div class="pixel-grid" aria-hidden="true"></div>
@@ -401,69 +401,73 @@
           <div class="section-intro">
             <img class="section-emblem" src="./assets/illustrations/art-floating-cards.png" alt="" aria-hidden="true" loading="eager" decoding="async">
             <span class="pixel-pill">DeepSeek</span>
-            <h2>AI 生成控制台</h2>
-            <p>把预生成 Prompt 交给后端，API Key 只从服务器环境变量读取。</p>
+            <h2>AI 智能助手</h2>
+            <p>和助手多轮对话，它会自己决定是否调用工具检索 / 创建卡片或起草。API Key 只从服务器环境变量读取。</p>
           </div>
 
-          <div class="ai-grid">
-            <article class="panel ai-control-panel">
-              <div class="panel-head">
-                <div>
-                  <h2>输入与参数</h2>
-                  <p>支持流式输出，适合直接观察模型回答过程。</p>
-                </div>
-                <button id="askLlmButton" type="button">流式生成</button>
-              </div>
-
-              <div class="api-key-note">
-                后端读取 <code>DEEPSEEK_API_KEY</code>，前端不会接触密钥。
-              </div>
-
-              <div class="quick-form">
-                <label>
-                  模型
-                  <select id="llmModel" name="llm_model" autocomplete="off">
-                    <option value="deepseek-v4-flash" selected>deepseek-v4-flash</option>
-                    <option value="deepseek-v4-pro">deepseek-v4-pro</option>
-                  </select>
-                </label>
-                <label>
-                  temperature <output id="temperatureValue">0.7</output>
-                  <input id="llmTemperature" name="llm_temperature" type="range" min="0" max="2" step="0.1" value="0.7">
-                </label>
-              </div>
-
-              <label>
-                当前预生成 Prompt
-                <textarea id="aiPromptInput" name="ai_prompt_input" rows="14" autocomplete="off" placeholder="可从快速生成区同步，也可以手动粘贴 Prompt"></textarea>
+          <article class="panel agent-panel">
+            <div class="agent-header">
+              <label class="agent-field agent-field--model">
+                <span>模型</span>
+                <select id="llmModel" name="llm_model" autocomplete="off">
+                  <option value="deepseek-v4-flash" selected>deepseek-v4-flash</option>
+                  <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                </select>
               </label>
-            </article>
+              <label class="agent-field agent-field--temp">
+                <span>temp <output id="temperatureValue">0.7</output></span>
+                <input id="llmTemperature" name="llm_temperature" type="range" min="0" max="2" step="0.1" value="0.7">
+              </label>
+              <label class="agent-field agent-field--convo">
+                <span>会话</span>
+                <select id="agentConversationSelect" aria-label="选择会话">
+                  <option value="">— 新对话 —</option>
+                </select>
+              </label>
+              <div class="agent-header__actions">
+                <button id="agentNewConversationButton" class="secondary-button compact-button" type="button">新建</button>
+                <button id="agentDeleteConversationButton" class="secondary-button compact-button" type="button">删除</button>
+              </div>
+            </div>
 
-            <article class="panel ai-output-panel">
-              <div class="panel-head">
-                <div>
-                  <h2>模型回答</h2>
-                  <p id="llmHint">等待调用模型。</p>
-                </div>
-                <div class="button-row">
-                  <button id="copyAnswerButton" class="secondary-button" type="button">复制回答</button>
-                  <button id="saveAnswerContextCardButton" class="secondary-button" type="button">存为卡片</button>
-                </div>
+            <div id="agentChat" class="agent-chat">
+              <div class="empty-state">开始一段对话吧。助手会记住上文，历史按会话存进本地数据库。</div>
+            </div>
+
+            <div id="agentQuickActions" class="agent-quick-actions is-hidden">
+              <span class="agent-quick-actions__label">生成完成，接下来：</span>
+              <button id="agentSaveButton" class="secondary-button compact-button" type="button">💾 保存到历史</button>
+              <button id="agentPolishButton" class="secondary-button compact-button" type="button">✨ AI 润色</button>
+              <button id="agentFinishButton" class="secondary-button compact-button" type="button">✅ 完成</button>
+            </div>
+
+            <div class="agent-composer">
+              <label class="agent-allow-write" title="开启后模型可执行写操作，例如创建卡片">
+                <input id="agentAllowWrite" type="checkbox">
+                <span>⚠️ 允许模型修改数据</span>
+              </label>
+              <div class="agent-input-row">
+                <textarea id="agentInput" name="agent_input" rows="2" autocomplete="off" placeholder="给助手发消息…（会记住上文，Enter 发送 / Shift+Enter 换行）"></textarea>
+                <button id="agentAskButton" type="button">发送</button>
               </div>
-              <div class="terminal-status">
-                <span id="terminalState">IDLE</span>
-                <i><b id="terminalProgress"></b></i>
-                <small id="answerStats">0 字符</small>
+            </div>
+
+            <div class="agent-trace-block">
+              <div class="section-title">
+                <span>最近一轮工具调用</span>
+                <small id="agentTraceHint">—</small>
               </div>
-              <textarea id="llmAnswer" name="llm_answer" readonly aria-label="模型回答" placeholder="流式回答会逐字显示在这里…"></textarea>
-            </article>
-          </div>
+              <div id="agentTrace" class="agent-trace">
+                <div class="empty-state">本轮的工具调用会显示在这里。</div>
+              </div>
+            </div>
+          </article>
         </section>
       </main>
     </div>
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite">准备就绪</div>
-  <script src="./script.js?v=visual-system-v1"></script>
+  <script src="./script.js?v=polish-v1"></script>
 </body>
 </html>

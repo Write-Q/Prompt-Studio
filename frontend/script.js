@@ -486,7 +486,6 @@ const elements = {
   copyOptimizedButton: document.querySelector("#copyOptimizedButton"),
   copyPromptButton: document.querySelector("#copyPromptButton"),
   pushToAiButton: document.querySelector("#pushToAiButton"),
-  aiPromptInput: document.querySelector("#aiPromptInput"),
 
   templateForm: document.querySelector("#templateForm"),
   templateFormTitle: document.querySelector("#templateFormTitle"),
@@ -517,17 +516,24 @@ const elements = {
   historyList: document.querySelector("#historyList"),
   reloadHistoryButton: document.querySelector("#reloadHistoryButton"),
 
-  askLlmButton: document.querySelector("#askLlmButton"),
   llmModel: document.querySelector("#llmModel"),
   llmTemperature: document.querySelector("#llmTemperature"),
   temperatureValue: document.querySelector("#temperatureValue"),
-  llmHint: document.querySelector("#llmHint"),
-  llmAnswer: document.querySelector("#llmAnswer"),
-  copyAnswerButton: document.querySelector("#copyAnswerButton"),
-  saveAnswerContextCardButton: document.querySelector("#saveAnswerContextCardButton"),
-  terminalState: document.querySelector("#terminalState"),
-  terminalProgress: document.querySelector("#terminalProgress"),
-  answerStats: document.querySelector("#answerStats"),
+
+  agentAskButton: document.querySelector("#agentAskButton"),
+  agentInput: document.querySelector("#agentInput"),
+  agentTrace: document.querySelector("#agentTrace"),
+  agentTraceHint: document.querySelector("#agentTraceHint"),
+  agentChat: document.querySelector("#agentChat"),
+  agentConversationSelect: document.querySelector("#agentConversationSelect"),
+  agentNewConversationButton: document.querySelector("#agentNewConversationButton"),
+  agentDeleteConversationButton: document.querySelector("#agentDeleteConversationButton"),
+  agentAllowWrite: document.querySelector("#agentAllowWrite"),
+  agentQuickActions: document.querySelector("#agentQuickActions"),
+  agentSaveButton: document.querySelector("#agentSaveButton"),
+  agentPolishButton: document.querySelector("#agentPolishButton"),
+  agentFinishButton: document.querySelector("#agentFinishButton"),
+
   hoverTooltip: document.createElement("div"),
 };
 
@@ -620,14 +626,6 @@ function setWorkflowStep(activeStep = "compose") {
     step.classList.toggle("is-active", index === activeIndex);
     step.classList.toggle("is-done", index >= 0 && index < activeIndex);
   });
-}
-
-function setTerminalStatus(label, progress = 0, isRunning = false, isError = false) {
-  elements.terminalState.textContent = label;
-  elements.terminalProgress.style.width = `${Math.max(0, Math.min(progress, 100))}%`;
-  const wrapper = elements.terminalState.closest(".terminal-status");
-  wrapper.classList.toggle("is-running", isRunning);
-  wrapper.classList.toggle("is-error", isError);
 }
 
 function escapeHtml(value) {
@@ -891,7 +889,8 @@ function initializeCustomSelects() {
     detail: templateSelectOptionDetail,
   });
   enhanceSelect(elements.contextCardType);
-  enhanceSelect(elements.llmModel, { theme: "dark" });
+  enhanceSelect(elements.llmModel);
+  enhanceSelect(elements.agentConversationSelect);
 }
 
 async function requestJson(url, options = {}) {
@@ -1897,13 +1896,8 @@ function updatePromptAssistant() {
   }
 }
 
-function updateAnswerStats() {
-  elements.answerStats.textContent = `${elements.llmAnswer.value.length} 字符`;
-}
-
 function updateWorkSurface() {
   updatePromptAssistant();
-  updateAnswerStats();
 }
 
 function hideOptimizeBox() {
@@ -1996,7 +1990,6 @@ async function previewPrompt() {
     });
 
     elements.finalPrompt.value = result.final_prompt;
-    elements.aiPromptInput.value = result.final_prompt;
     hideOptimizeBox();
 
     const missingVariables = result.missing_variables || [];
@@ -2102,7 +2095,6 @@ function applyOptimizedPrompt() {
   }
 
   elements.finalPrompt.value = optimized;
-  elements.aiPromptInput.value = optimized;
   setWorkflowStep("save");
   elements.promptHint.textContent = "已采用优化稿，可送去 AI、复制或保存。";
   setCatMood("优化稿已放入工作台。", "happy");
@@ -2294,104 +2286,360 @@ async function deleteItem(url, successMessage, fallbackAction) {
 async function loadHistoryToPrompt(historyId) {
   const history = state.history.find((item) => item.id === historyId) || await requestJson(`/api/history/${historyId}`);
   elements.finalPrompt.value = history.final_prompt;
-  elements.aiPromptInput.value = history.final_prompt;
   elements.promptHint.textContent = `已载入历史 ID：${history.id}`;
   switchView("dashboard");
   showToast("历史 Prompt 已载入");
 }
 
-async function askLlm() {
-  const prompt = elements.aiPromptInput.value.trim() || elements.finalPrompt.value.trim();
-  if (!prompt) {
-    showToast("请先生成或填写 Prompt", true);
+let agentConversationId = "";
+
+function summarizeToolCall(call) {
+  const args = call.arguments || {};
+  let result = null;
+  try {
+    result = JSON.parse(call.result);
+  } catch (parseError) {
+    /* 结果不是 JSON 就忽略 */
+  }
+  if (result && result.error) {
+    return `⚠️ ${call.name}：${result.error}`;
+  }
+  const count = Array.isArray(result) ? result.length : null;
+  switch (call.name) {
+    case "search_context_cards":
+      return `🔍 检索卡片「${args.text || ""}」→ 找到 ${count ?? "?"} 张`;
+    case "search_prompt_templates":
+      return `🔍 检索模板「${args.keyword || ""}」→ 找到 ${count ?? "?"} 个`;
+    case "create_context_card":
+      return `✍️ 创建卡片「${args.title || ""}」`;
+    case "update_context_card":
+      return `✏️ 修改卡片 #${args.id}`;
+    case "delete_context_card":
+      return `🗑️ 删除卡片 #${args.id}`;
+    case "create_prompt_template":
+      return `✍️ 创建模板「${args.title || ""}」`;
+    case "update_prompt_template":
+      return `✏️ 修改模板 #${args.id}`;
+    case "delete_prompt_template":
+      return `🗑️ 删除模板 #${args.id}`;
+    case "draft_with_template":
+      return `🧩 用模板 #${args.template_id} 组装草稿`;
+    case "save_to_history":
+      return `💾 保存到历史`;
+    case "list_history":
+      return `📜 查看历史 → ${count ?? "?"} 条`;
+    default:
+      return `🔧 ${call.name}`;
+  }
+}
+
+function renderAgentTrace(toolCalls) {
+  if (!toolCalls || toolCalls.length === 0) {
+    elements.agentTrace.innerHTML =
+      '<div class="empty-state">本轮没有调用任何工具，模型直接作答。</div>';
+    elements.agentTraceHint.textContent = "未调用工具";
     return;
   }
+
+  elements.agentTraceHint.textContent = `共调用 ${toolCalls.length} 次`;
+  elements.agentTrace.innerHTML = toolCalls
+    .map((call, index) => {
+      const summary = escapeHtml(summarizeToolCall(call));
+      const raw = escapeHtml(call.result || "");
+      return `
+        <div class="agent-trace-item">
+          <div class="agent-trace-head">
+            <span class="agent-trace-index">${index + 1}</span>
+            <span class="agent-trace-summary">${summary}</span>
+          </div>
+          <details class="agent-trace-raw"><summary>原始数据</summary><pre>${raw}</pre></details>
+        </div>`;
+    })
+    .join("");
+}
+
+const AGENT_EMPTY_HTML =
+  '<div class="empty-state agent-empty">' +
+  "<p>开始一段对话吧（会记住上文，历史按会话存本地）。试试：</p>" +
+  '<div class="agent-examples">' +
+  '<button class="agent-example secondary-button compact-button" type="button">帮我找几张写作规则相关的卡片</button>' +
+  '<button class="agent-example secondary-button compact-button" type="button">列出现有的 Prompt 模板</button>' +
+  '<button class="agent-example secondary-button compact-button" type="button">挑一个合适的模板帮我起草一段 Prompt</button>' +
+  "</div></div>";
+
+function chatBubbleHtml(role, content) {
+  const who = role === "user" ? "user" : "assistant";
+  const label = role === "user" ? "你" : "助手";
+  const copy =
+    who === "assistant"
+      ? '<button class="chat-copy secondary-button" type="button" title="复制">复制</button>'
+      : "";
+  return `<div class="chat-bubble chat-bubble--${who}"><b>${label}</b><div class="chat-bubble__body">${escapeHtml(content)}</div>${copy}</div>`;
+}
+
+function renderAgentChat(messages) {
+  if (!messages || messages.length === 0) {
+    elements.agentChat.innerHTML = AGENT_EMPTY_HTML;
+    return;
+  }
+  elements.agentChat.innerHTML = messages
+    .map((message) => chatBubbleHtml(message.role, message.content))
+    .join("");
+  elements.agentChat.scrollTop = elements.agentChat.scrollHeight;
+}
+
+function appendChatBubble(role, content) {
+  const placeholder = elements.agentChat.querySelector(".empty-state");
+  if (placeholder) {
+    placeholder.remove();
+  }
+  const who = role === "user" ? "user" : "assistant";
+  const bubble = document.createElement("div");
+  bubble.className = `chat-bubble chat-bubble--${who}`;
+  const tag = document.createElement("b");
+  tag.textContent = role === "user" ? "你" : "助手";
+  const body = document.createElement("div");
+  body.className = "chat-bubble__body";
+  body.textContent = content;
+  bubble.append(tag, body);
+  if (who === "assistant") {
+    const copyButton = document.createElement("button");
+    copyButton.className = "chat-copy secondary-button";
+    copyButton.type = "button";
+    copyButton.title = "复制";
+    copyButton.textContent = "复制";
+    bubble.append(copyButton);
+  }
+  elements.agentChat.appendChild(bubble);
+  elements.agentChat.scrollTop = elements.agentChat.scrollHeight;
+  return body; // 返回正文节点，便于流式逐字更新
+}
+
+async function loadAgentConversations() {
+  try {
+    const items = await requestJson("/api/conversations");
+    elements.agentConversationSelect.innerHTML =
+      '<option value="">— 新对话 —</option>' +
+      items
+        .map((item) => {
+          const title = (item.title || "(空)").slice(0, 18);
+          return `<option value="${escapeHtml(item.conversation_id)}">${escapeHtml(title)} · ${item.message_count}条</option>`;
+        })
+        .join("");
+    elements.agentConversationSelect.value = agentConversationId || "";
+    refreshCustomSelect(elements.agentConversationSelect);
+  } catch (error) {
+    /* 会话列表加载失败不影响主流程 */
+  }
+}
+
+async function openAgentConversation(conversationId) {
+  agentConversationId = conversationId || "";
+  elements.agentConversationSelect.value = agentConversationId;
+  refreshCustomSelect(elements.agentConversationSelect);
+  if (!agentConversationId) {
+    renderAgentChat([]);
+    return;
+  }
+  try {
+    const messages = await requestJson(`/api/conversations/${agentConversationId}`);
+    renderAgentChat(messages);
+  } catch (error) {
+    showToast("加载会话失败", true);
+  }
+}
+
+function newAgentConversation() {
+  agentConversationId = "";
+  elements.agentConversationSelect.value = "";
+  refreshCustomSelect(elements.agentConversationSelect);
+  renderAgentChat([]);
+  elements.agentTrace.innerHTML = '<div class="empty-state">本轮的工具调用会显示在这里。</div>';
+  elements.agentTraceHint.textContent = "—";
+}
+
+async function deleteAgentConversation() {
+  if (!agentConversationId) {
+    showToast("当前是新对话，无需删除");
+    return;
+  }
+  try {
+    await requestJson(`/api/conversations/${agentConversationId}`, { method: "DELETE" });
+    showToast("会话已删除");
+    newAgentConversation();
+    await loadAgentConversations();
+  } catch (error) {
+    showToast("删除失败", true);
+  }
+}
+
+let agentPendingPrompt = null; // 最近一次生成的草稿 { template_id, variables, context_card_ids, final_prompt }
+
+function renderQuickActions() {
+  elements.agentQuickActions.classList.remove("is-hidden");
+}
+
+function hideQuickActions() {
+  elements.agentQuickActions.classList.add("is-hidden");
+}
+
+async function askAgent(sentPrompt = null, options = {}) {
+  const prompt = (sentPrompt != null ? sentPrompt : elements.agentInput.value).trim();
+  if (!prompt) {
+    showToast("请先输入问题", true);
+    return;
+  }
+
+  const isPolish = !!options.polish;
+  const displayText = options.displayText || prompt;
 
   const payload = {
     prompt,
     model: elements.llmModel.value,
     temperature: Number(elements.llmTemperature.value || 0.7),
+    allow_write: elements.agentAllowWrite.checked,
+    conversation_id: agentConversationId || null,
+  };
+
+  elements.agentAskButton.disabled = true;
+  if (sentPrompt == null) {
+    elements.agentInput.value = "";
+  }
+  hideQuickActions();
+  elements.agentTrace.innerHTML =
+    '<div class="empty-state">模型思考中，正在决定是否调用工具…</div>';
+  elements.agentTraceHint.textContent = "请求中…";
+
+  // 立刻显示用户气泡 + 一个空的助手气泡(随流式逐字填充)
+  appendChatBubble("user", displayText);
+  const answerBody = appendChatBubble("assistant", "");
+  const answerBubble = answerBody.parentElement;
+  answerBubble.classList.add("is-streaming"); // 末尾跳动光标，表示正在生成
+  const trace = [];
+  let answer = "";
+  let draftedThisTurn = null; // 本轮 draft_with_template 抓到的草稿
+
+  const handleEvent = (event) => {
+    if (event.type === "token") {
+      answer += event.text;
+      answerBody.textContent = answer;
+      elements.agentChat.scrollTop = elements.agentChat.scrollHeight;
+    } else if (event.type === "tool") {
+      trace.push(event);
+      renderAgentTrace(trace);
+      if (event.name === "draft_with_template") {
+        try {
+          const result = JSON.parse(event.result);
+          draftedThisTurn = {
+            template_id: event.arguments.template_id,
+            variables: event.arguments.variables || {},
+            context_card_ids: event.arguments.context_card_ids || [],
+            final_prompt: result.final_prompt || "",
+          };
+        } catch (parseError) {
+          /* 草稿解析失败就不抓 */
+        }
+      }
+    } else if (event.type === "done") {
+      agentConversationId = event.conversation_id;
+      if (trace.length === 0) {
+        renderAgentTrace([]);
+      }
+      loadAgentConversations();
+      showToast(`已回答 · ${event.rounds} 轮`);
+      if (isPolish && agentPendingPrompt) {
+        // 润色：把润色后的正文当成新的待保存 Prompt，并再次给出操作（形成循环）
+        agentPendingPrompt = { ...agentPendingPrompt, final_prompt: answer };
+        renderQuickActions();
+      } else if (draftedThisTurn) {
+        agentPendingPrompt = draftedThisTurn;
+        renderQuickActions();
+      }
+    } else if (event.type === "error") {
+      answerBody.textContent = answer || `（出错：${event.message}）`;
+      elements.agentTraceHint.textContent = "失败";
+      showToast(event.message || "调用失败", true);
+    }
   };
 
   try {
-    elements.askLlmButton.disabled = true;
-    elements.llmAnswer.value = "";
-    updateAnswerStats();
-    setTerminalStatus("RUN", 18, true);
-    elements.llmHint.textContent = `模型：${payload.model}，正在建立流式连接…`;
-
-    const response = await fetch("/api/llm/answer/stream", {
+    const response = await fetch("/api/llm/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-      throw new Error(await response.text());
-    }
-
-    if (!response.body) {
-      throw new Error("当前浏览器不支持流式读取响应");
+    if (!response.ok || !response.body) {
+      throw new Error(await response.text().catch(() => "请求失败"));
     }
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    setTerminalStatus("READ", 62, true);
-    elements.llmHint.textContent = `模型：${payload.model}，正在流式输出…`;
+    let buffer = "";
 
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
         break;
       }
-
-      const chunk = decoder.decode(value, { stream: true });
-      elements.llmAnswer.value += chunk;
-      updateAnswerStats();
-      elements.llmAnswer.scrollTop = elements.llmAnswer.scrollHeight;
+      buffer += decoder.decode(value, { stream: true });
+      let newlineIndex;
+      while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+        if (line) {
+          handleEvent(JSON.parse(line));
+        }
+      }
     }
-
-    const tail = decoder.decode();
-    if (tail) {
-      elements.llmAnswer.value += tail;
-      updateAnswerStats();
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      handleEvent(JSON.parse(buffer.trim()));
     }
-
-    setTerminalStatus("DONE", 100);
-    elements.llmHint.textContent = `模型：${payload.model}，输出完成。`;
-    showToast("AI 回答已完成");
   } catch (error) {
-    setTerminalStatus("ERR", 100, false, true);
-    elements.llmHint.textContent = error.message;
-    showToast("AI 生成失败，请检查 API Key 或网络", true);
+    elements.agentTraceHint.textContent = "失败";
+    showToast(error.message || "智能助手调用失败，请检查 API Key 或网络", true);
   } finally {
-    elements.askLlmButton.disabled = false;
+    elements.agentAskButton.disabled = false;
+    answerBubble.classList.remove("is-streaming");
   }
 }
 
-async function saveAnswerAsContextCard() {
-  const content = elements.llmAnswer.value.trim();
-  if (!content) {
-    showToast("暂无可保存的回答", true);
+async function quickSaveToHistory() {
+  if (!agentPendingPrompt) {
     return;
   }
-
   try {
-    await requestJson("/api/context-cards", {
+    await requestJson("/api/history", {
       method: "POST",
       body: JSON.stringify({
-        type: "example",
-        title: `AI 回答 ${dateTimeFormatter.format(new Date()).replace(/\//g, "-")}`,
-        tags: ["AI回答"],
-        content,
+        template_id: agentPendingPrompt.template_id,
+        variables: agentPendingPrompt.variables,
+        context_card_ids: agentPendingPrompt.context_card_ids,
+        final_prompt: agentPendingPrompt.final_prompt,
       }),
     });
-    await loadData();
-    switchView("contextCards");
-    showToast("AI 回答已存为卡片");
+    showToast("已保存到历史");
+    if (typeof loadHistory === "function") {
+      loadHistory();
+    }
   } catch (error) {
-    showToast(error.message, true);
+    showToast(error.message || "保存失败", true);
   }
+}
+
+function quickPolish() {
+  if (!agentPendingPrompt) {
+    return;
+  }
+  const sent =
+    "请把下面这份 Prompt 润色得更专业、结构更清晰，只输出 Prompt 正文（不要额外说明），保留其中的 {变量} 占位符：\n\n" +
+    agentPendingPrompt.final_prompt;
+  askAgent(sent, { displayText: "✨ 润色上面的草稿", polish: true });
+}
+
+function quickFinish() {
+  agentPendingPrompt = null;
+  hideQuickActions();
 }
 
 function bindEvents() {
@@ -2627,10 +2875,10 @@ function bindEvents() {
   elements.copyOptimizedButton.addEventListener("click", () => copyText(elements.optimizedPrompt.value, "优化稿已复制"));
   elements.copyPromptButton.addEventListener("click", () => copyText(elements.finalPrompt.value, "预生成 Prompt 已复制"));
   elements.pushToAiButton.addEventListener("click", () => {
-    elements.aiPromptInput.value = elements.finalPrompt.value;
+    elements.agentInput.value = elements.finalPrompt.value;
     setWorkflowStep("save");
     switchView("ai");
-    showToast("预生成 Prompt 已同步到 AI 控制台");
+    showToast("预生成 Prompt 已送到智能助手输入框");
   });
 
   elements.templateForm.addEventListener("submit", saveTemplate);
@@ -2757,9 +3005,37 @@ function bindEvents() {
   elements.llmTemperature.addEventListener("input", () => {
     elements.temperatureValue.textContent = elements.llmTemperature.value;
   });
-  elements.askLlmButton.addEventListener("click", askLlm);
-  elements.copyAnswerButton.addEventListener("click", () => copyText(elements.llmAnswer.value, "AI 回答已复制"));
-  elements.saveAnswerContextCardButton.addEventListener("click", saveAnswerAsContextCard);
+  elements.agentAskButton.addEventListener("click", () => askAgent());
+  elements.agentInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      askAgent();
+    }
+  });
+  elements.agentSaveButton.addEventListener("click", quickSaveToHistory);
+  elements.agentPolishButton.addEventListener("click", quickPolish);
+  elements.agentFinishButton.addEventListener("click", quickFinish);
+  elements.agentNewConversationButton.addEventListener("click", newAgentConversation);
+  elements.agentDeleteConversationButton.addEventListener("click", deleteAgentConversation);
+  elements.agentConversationSelect.addEventListener("change", (event) =>
+    openAgentConversation(event.target.value),
+  );
+  elements.agentChat.addEventListener("click", (event) => {
+    const copyButton = event.target.closest(".chat-copy");
+    if (copyButton) {
+      const body = copyButton.parentElement.querySelector(".chat-bubble__body");
+      if (body) {
+        copyText(body.textContent, "已复制回答");
+      }
+      return;
+    }
+    const example = event.target.closest(".agent-example");
+    if (example) {
+      askAgent(example.textContent);
+    }
+  });
+  renderAgentChat([]); // 初始展示空态示例
+  loadAgentConversations();
 
   document.addEventListener("click", (event) => {
     if (!event.target.closest(".custom-select")) {

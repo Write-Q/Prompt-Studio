@@ -3,10 +3,17 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import (
     LlmAnswerRequest,
+    LlmChatRequest,
+    LlmChatResponse,
     PromptOptimizeRequest,
     PromptOptimizeResponse,
 )
-from app.services.llm_service import optimize_prompt, stream_deepseek_answer
+from app.services.llm_service import (
+    chat_with_tools,
+    optimize_prompt,
+    stream_chat_with_tools,
+    stream_deepseek_answer,
+)
 
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
@@ -23,3 +30,16 @@ def create_llm_answer_stream(payload: LlmAnswerRequest) -> StreamingResponse:
 @router.post("/optimize-prompt", response_model=PromptOptimizeResponse)
 def create_prompt_optimization(payload: PromptOptimizeRequest) -> PromptOptimizeResponse:
     return optimize_prompt(payload)
+
+
+@router.post("/chat", response_model=LlmChatResponse)
+def create_llm_chat(payload: LlmChatRequest) -> LlmChatResponse:
+    return chat_with_tools(payload)
+
+
+@router.post("/chat/stream")
+def create_llm_chat_stream(payload: LlmChatRequest) -> StreamingResponse:
+    return StreamingResponse(
+        stream_chat_with_tools(payload),
+        media_type="application/x-ndjson; charset=utf-8",
+    )

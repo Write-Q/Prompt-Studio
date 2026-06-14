@@ -52,7 +52,9 @@ def create_template(payload: PromptTemplateCreate) -> PromptTemplateResponse:
             ),
         ).fetchone()
         connection.commit()
-    return _template_from_row(row)
+    template = _template_from_row(row)
+    _set_template_embedding_safe(template.id, _template_embed_text(template))
+    return template
 
 
 def list_templates(
@@ -130,7 +132,9 @@ def update_template(
     if row is None:
         raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
 
-    return _template_from_row(row)
+    template = _template_from_row(row)
+    _set_template_embedding_safe(template.id, _template_embed_text(template))
+    return template
 
 
 def set_template_favorite(template_id: int, is_favorite: bool) -> PromptTemplateResponse:
@@ -169,3 +173,73 @@ def delete_template(template_id: int) -> bool:
         raise TemplateNotFoundError(f"ID 为 {template_id} 的模板不存在")
 
     return True
+
+
+def _template_embed_text(template: PromptTemplateResponse) -> str:
+    parts = [template.title, template.description or "", template.content]
+    return "\n".join(part for part in parts if part)
+
+
+def _set_template_embedding_safe(template_id: int, text: str) -> None:
+    """给单个模板写 embedding；失败(模型没装/出错)也不阻断创建/更新。"""
+    try:
+        from app.services.embedding import embed, serialize_vector
+
+        vector = serialize_vector(embed(text))
+        with get_connection() as connection:
+            connection.execute(
+                "UPDATE prompt_templates SET embedding = ? WHERE id = ?", (vector, template_id)
+            )
+            connection.commit()
+    except Exception:  # noqa: BLE001 - embedding 是增强项，不该影响主流程
+        pass
+
+
+def recommend_templates(text: str, limit: int = 5) -> list[PromptTemplateResponse]:
+    """按需求文本语义检索模板：查询向量与各模板向量算余弦，阈值过滤后取前 limit 个。"""
+    from app.services.embedding import (
+        SIMILARITY_THRESHOLD,
+        deserialize_vector,
+        embed,
+        top_k_by_cosine,
+    )
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT {TEMPLATE_COLUMNS}, embedding FROM prompt_templates WHERE embedding IS NOT NULL"
+        ).fetchall()
+
+    candidates = []
+    for row in rows:
+        vector = deserialize_vector(row["embedding"])
+        if vector:
+            candidates.append((_template_from_row(row), vector))
+    if not candidates:
+        return []
+
+    query_vector = embed(text, is_query=True)
+    return top_k_by_cosine(query_vector, candidates, limit, min_score=SIMILARITY_THRESHOLD)
+
+
+def backfill_template_embeddings() -> int:
+    """给所有还没有 embedding 的模板批量补上。返回补的条数。"""
+    from app.services.embedding import embed_documents, serialize_vector
+
+    with get_connection() as connection:
+        rows = connection.execute(
+            f"SELECT {TEMPLATE_COLUMNS} FROM prompt_templates WHERE embedding IS NULL"
+        ).fetchall()
+
+    templates = [_template_from_row(row) for row in rows]
+    if not templates:
+        return 0
+
+    vectors = embed_documents([_template_embed_text(template) for template in templates])
+    with get_connection() as connection:
+        for template, vector in zip(templates, vectors):
+            connection.execute(
+                "UPDATE prompt_templates SET embedding = ? WHERE id = ?",
+                (serialize_vector(vector), template.id),
+            )
+        connection.commit()
+    return len(templates)
