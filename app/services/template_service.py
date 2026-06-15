@@ -183,12 +183,12 @@ def _template_embed_text(template: PromptTemplateResponse) -> str:
 def _set_template_embedding_safe(template_id: int, text: str) -> None:
     """给单个模板写 embedding；失败(模型没装/出错)也不阻断创建/更新。"""
     try:
-        from app.services.embedding import embed, serialize_vector
+        from app.services.embedding import embed, to_pgvector
 
-        vector = serialize_vector(embed(text))
+        vector = to_pgvector(embed(text))
         with get_connection() as connection:
             connection.execute(
-                "UPDATE prompt_templates SET embedding = ? WHERE id = ?", (vector, template_id)
+                "UPDATE prompt_templates SET embedding = ?::vector WHERE id = ?", (vector, template_id)
             )
             connection.commit()
     except Exception:  # noqa: BLE001 - embedding 是增强项，不该影响主流程
@@ -196,34 +196,28 @@ def _set_template_embedding_safe(template_id: int, text: str) -> None:
 
 
 def recommend_templates(text: str, limit: int = 5) -> list[PromptTemplateResponse]:
-    """按需求文本语义检索模板：查询向量与各模板向量算余弦，阈值过滤后取前 limit 个。"""
-    from app.services.embedding import (
-        SIMILARITY_THRESHOLD,
-        deserialize_vector,
-        embed,
-        top_k_by_cosine,
-    )
+    """按需求文本语义检索模板：用 pgvector 余弦距离(<=>)，阈值过滤后取前 limit 个。"""
+    from app.services.embedding import SIMILARITY_THRESHOLD, embed, to_pgvector
 
+    query_vector = to_pgvector(embed(text, is_query=True))
+    max_distance = 1 - SIMILARITY_THRESHOLD
     with get_connection() as connection:
         rows = connection.execute(
-            f"SELECT {TEMPLATE_COLUMNS}, embedding FROM prompt_templates WHERE embedding IS NOT NULL"
+            f"""
+            SELECT {TEMPLATE_COLUMNS}
+            FROM prompt_templates
+            WHERE embedding IS NOT NULL AND (embedding <=> ?::vector) <= ?
+            ORDER BY embedding <=> ?::vector
+            LIMIT ?
+            """,
+            (query_vector, max_distance, query_vector, limit),
         ).fetchall()
-
-    candidates = []
-    for row in rows:
-        vector = deserialize_vector(row["embedding"])
-        if vector:
-            candidates.append((_template_from_row(row), vector))
-    if not candidates:
-        return []
-
-    query_vector = embed(text, is_query=True)
-    return top_k_by_cosine(query_vector, candidates, limit, min_score=SIMILARITY_THRESHOLD)
+    return [_template_from_row(row) for row in rows]
 
 
 def backfill_template_embeddings() -> int:
     """给所有还没有 embedding 的模板批量补上。返回补的条数。"""
-    from app.services.embedding import embed_documents, serialize_vector
+    from app.services.embedding import embed_documents, to_pgvector
 
     with get_connection() as connection:
         rows = connection.execute(
@@ -238,8 +232,8 @@ def backfill_template_embeddings() -> int:
     with get_connection() as connection:
         for template, vector in zip(templates, vectors):
             connection.execute(
-                "UPDATE prompt_templates SET embedding = ? WHERE id = ?",
-                (serialize_vector(vector), template.id),
+                "UPDATE prompt_templates SET embedding = ?::vector WHERE id = ?",
+                (to_pgvector(vector), template.id),
             )
         connection.commit()
     return len(templates)

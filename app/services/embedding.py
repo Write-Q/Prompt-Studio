@@ -7,7 +7,13 @@
 """
 
 import json
+import os
 from functools import lru_cache
+
+# 用本地缓存的模型、不联网检查更新(避免网络抖动拖慢/拖垮启动)。
+# 注意:首次使用需联网下载一次模型(下载后即缓存),之后离线即可。
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 MODEL_NAME = "BAAI/bge-small-zh-v1.5"  # 512 维，中文检索友好，体积小
 # BGE 检索建议给「查询」加指令前缀(对短查询提升召回)；文档/卡片正文不加。
@@ -48,6 +54,11 @@ def top_k_by_cosine(query_vec, candidates, k, min_score=0.0):
     scored = [pair for pair in scored if pair[0] >= min_score]
     scored.sort(key=lambda pair: -pair[0])
     return [item for _, item in scored[:k]]
+
+
+def to_pgvector(vector: list[float]) -> str:
+    """转成 pgvector 的文本格式 '[x,y,z]'，配合 SQL 里的 ?::vector 使用。"""
+    return "[" + ",".join(repr(float(x)) for x in vector) + "]"
 
 
 def serialize_vector(vector: list[float]) -> str:

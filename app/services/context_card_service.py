@@ -89,31 +89,23 @@ def list_context_cards(
 
 
 def recommend_context_cards(payload: ContextCardRecommendRequest) -> list[ContextCardResponse]:
-    """语义检索:查询向量与各卡片向量算余弦，过滤掉低于阈值的弱匹配，取前 limit 张。"""
-    from app.services.embedding import (
-        SIMILARITY_THRESHOLD,
-        deserialize_vector,
-        embed,
-        top_k_by_cosine,
-    )
+    """语义检索:用 pgvector 余弦距离(<=>)，阈值过滤后取前 limit 张(走 HNSW 索引)。"""
+    from app.services.embedding import SIMILARITY_THRESHOLD, embed, to_pgvector
 
+    query_vector = to_pgvector(embed(payload.text, is_query=True))
+    max_distance = 1 - SIMILARITY_THRESHOLD  # 余弦距离 = 1 - 余弦相似度
     with get_connection() as connection:
         rows = connection.execute(
-            f"SELECT {CONTEXT_CARD_COLUMNS}, embedding FROM context_cards WHERE embedding IS NOT NULL"
+            f"""
+            SELECT {CONTEXT_CARD_COLUMNS}
+            FROM context_cards
+            WHERE embedding IS NOT NULL AND (embedding <=> ?::vector) <= ?
+            ORDER BY embedding <=> ?::vector
+            LIMIT ?
+            """,
+            (query_vector, max_distance, query_vector, payload.limit),
         ).fetchall()
-
-    candidates = []
-    for row in rows:
-        vector = deserialize_vector(row["embedding"])
-        if vector:
-            candidates.append((_card_from_row(row), vector))
-    if not candidates:
-        return []
-
-    query_vector = embed(payload.text, is_query=True)
-    return top_k_by_cosine(
-        query_vector, candidates, payload.limit, min_score=SIMILARITY_THRESHOLD
-    )
+    return [_card_from_row(row) for row in rows]
 
 
 def _card_embed_text(card: ContextCardResponse) -> str:
@@ -123,12 +115,12 @@ def _card_embed_text(card: ContextCardResponse) -> str:
 def _set_card_embedding_safe(card_id: int, text: str) -> None:
     """给单张卡片写 embedding；失败(模型没装/出错)也不阻断创建/更新。"""
     try:
-        from app.services.embedding import embed, serialize_vector
+        from app.services.embedding import embed, to_pgvector
 
-        vector = serialize_vector(embed(text))
+        vector = to_pgvector(embed(text))
         with get_connection() as connection:
             connection.execute(
-                "UPDATE context_cards SET embedding = ? WHERE id = ?", (vector, card_id)
+                "UPDATE context_cards SET embedding = ?::vector WHERE id = ?", (vector, card_id)
             )
             connection.commit()
     except Exception:  # noqa: BLE001 - embedding 是增强项，不该影响主流程
@@ -137,7 +129,7 @@ def _set_card_embedding_safe(card_id: int, text: str) -> None:
 
 def backfill_card_embeddings() -> int:
     """给所有还没有 embedding 的卡片批量补上。返回补的条数。"""
-    from app.services.embedding import embed_documents, serialize_vector
+    from app.services.embedding import embed_documents, to_pgvector
 
     with get_connection() as connection:
         rows = connection.execute(
@@ -152,8 +144,8 @@ def backfill_card_embeddings() -> int:
     with get_connection() as connection:
         for card, vector in zip(cards, vectors):
             connection.execute(
-                "UPDATE context_cards SET embedding = ? WHERE id = ?",
-                (serialize_vector(vector), card.id),
+                "UPDATE context_cards SET embedding = ?::vector WHERE id = ?",
+                (to_pgvector(vector), card.id),
             )
         connection.commit()
     return len(cards)

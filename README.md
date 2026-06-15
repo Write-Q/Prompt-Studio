@@ -1,6 +1,6 @@
 # Prompt Studio
 
-Prompt Studio 是一个轻量级 Prompt 工作台，用于管理 Prompt 模板、上下文卡片和生成历史。后端基于 FastAPI + 原生 sqlite3（无 ORM），前端使用原生 HTML / CSS / JavaScript（无构建步骤），数据默认保存在本地 SQLite。
+Prompt Studio 是一个轻量级 Prompt 工作台，用于管理 Prompt 模板、上下文卡片和生成历史。后端基于 FastAPI + PostgreSQL（psycopg 直连、无 ORM，pgvector 做向量检索），前端使用原生 HTML / CSS / JavaScript（无构建步骤）。内置 Tool Use 智能助手与语义检索（RAG）。
 
 ## 功能
 
@@ -8,10 +8,20 @@ Prompt Studio 是一个轻量级 Prompt 工作台，用于管理 Prompt 模板�
 - 按模板、变量和上下文卡片预生成 Prompt（规则层组装）
 - 手动保存并查看生成历史
 - 调用 DeepSeek 生成回答（支持流式）或优化 Prompt
+- 智能助手（Tool Use）：多轮对话 + 流式 + 自动调用工具，对模板/卡片增删改查、起草、保存历史
+- 语义检索（RAG）：模板与上下文卡片用 BGE 向量 + pgvector 余弦检索（HNSW 索引）
 - 上下文卡片以「像素扑克牌」形式展示：5 堆分类、扇形展开、拖拽 / 点击出牌、键盘可导航
 - 像素工作室风格 UI：花体英文 pill、宋体大字标题 + CRT 色差、像素小猫插画与水印装饰
 
 ## 运行
+
+先准备一个带 pgvector 的 PostgreSQL（用 Docker 最简单）：
+
+```powershell
+docker run -d --name promptstudio-pg -e POSTGRES_PASSWORD=promptstudio -e POSTGRES_DB=promptstudio -p 5432:5432 pgvector/pgvector:pg16
+```
+
+默认连接串 `postgresql://postgres:promptstudio@localhost:5432/promptstudio`，可用环境变量 `DATABASE_URL` 覆盖。然后：
 
 ```powershell
 python -m venv .venv
@@ -19,6 +29,8 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+
+> 首次启动会自动建表 + 灌入 `seed/*.json` 种子，并下载 BGE 模型（约 100MB，需联网一次）为种子生成向量。
 
 前端入口：
 
@@ -95,7 +107,6 @@ frontend/
 ├── style.css
 └── assets/illustrations/   # 像素插画 PNG（8 张）
 
-seed_test_data.py           # 重建演示数据库并写入固定示例数据
 requirements.txt
 ```
 
@@ -103,11 +114,13 @@ requirements.txt
 
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests
-.\.venv\Scripts\python.exe -m compileall app seed_test_data.py verify_tool_use.py
+.\.venv\Scripts\python.exe -m compileall app verify_tool_use.py
 node --check frontend\script.js
 ```
 
-Tool Use（函数调用）联网验证（需配置 `DEEPSEEK_API_KEY`，建议先跑 `seed_test_data.py` 准备数据）：
+> 测试连接的是 PostgreSQL 测试库 `promptstudio_test`（需先 `CREATE DATABASE promptstudio_test;` 并 `CREATE EXTENSION vector;`），每个用例前会 TRUNCATE 隔离。
+
+Tool Use（函数调用）联网验证（需配置 `DEEPSEEK_API_KEY`；启动时已自动灌入种子数据）：
 
 ```powershell
 .\.venv\Scripts\python.exe verify_tool_use.py
@@ -118,14 +131,14 @@ Tool Use（函数调用）联网验证（需配置 `DEEPSEEK_API_KEY`，建议�
 ## 数据库初始化与示例数据
 
 ```powershell
-# 创建当前表结构（启动时自动执行，也可手动跑）
+# 建表 + pgvector 扩展 + HNSW 索引（启动时自动执行，也可手动跑）
 .\.venv\Scripts\python.exe -m app.database
 
-# 重建演示数据库并写入示例模板与上下文卡片
-.\.venv\Scripts\python.exe seed_test_data.py
+# 灌入种子数据（库为空时生效，等同首次启动）
+.\.venv\Scripts\python.exe -m app.seed
 ```
 
-数据库默认位置：`data/app.db`（首次启动自动创建）。
+数据库为 PostgreSQL（连接串见「运行」），向量存在各表的 `embedding vector(512)` 列。
 
 ## 可分发的种子数据（开箱即用）
 

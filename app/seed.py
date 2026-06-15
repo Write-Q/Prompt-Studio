@@ -41,20 +41,19 @@ def _insert_templates(connection, rows: list[dict]) -> None:
         """
         INSERT INTO prompt_templates
             (title, category, tags, content, description, is_favorite, created_at, updated_at)
-        VALUES
-            (:title, :category, :tags, :content, :description, :is_favorite, :created_at, :updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         [
-            {
-                "title": row["title"],
-                "category": row.get("category"),
-                "tags": serialize_tags(row.get("tags", [])),
-                "content": row["content"],
-                "description": row.get("description"),
-                "is_favorite": int(row.get("is_favorite", 0)),
-                "created_at": now,
-                "updated_at": now,
-            }
+            (
+                row["title"],
+                row.get("category"),
+                serialize_tags(row.get("tags", [])),
+                row["content"],
+                row.get("description"),
+                int(row.get("is_favorite", 0)),
+                now,
+                now,
+            )
             for row in rows
         ],
     )
@@ -65,17 +64,17 @@ def _insert_cards(connection, rows: list[dict]) -> None:
     connection.executemany(
         """
         INSERT INTO context_cards (type, title, tags, content, created_at, updated_at)
-        VALUES (:type, :title, :tags, :content, :created_at, :updated_at)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
         [
-            {
-                "type": row.get("type", "background"),
-                "title": row["title"],
-                "tags": serialize_tags(row.get("tags", [])),
-                "content": row["content"],
-                "created_at": now,
-                "updated_at": now,
-            }
+            (
+                row.get("type", "background"),
+                row["title"],
+                serialize_tags(row.get("tags", [])),
+                row["content"],
+                now,
+                now,
+            )
             for row in rows
         ],
     )
